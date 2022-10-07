@@ -1,0 +1,4 @@
+/data
+/__pycache__
+stable_whisper.py
+*.mp3

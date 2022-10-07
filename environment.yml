@@ -1,0 +1,19 @@
+name: audio
+
+channels:
+  - pytorch
+  - conda-forge
+dependencies:
+  - python=3.9
+  - pytorch::pytorch=1.12.1
+  - pytorch::torchvision=0.13.1
+  - pytorch::torchaudio=0.12.1
+  - cudatoolkit=11.3
+  pip:
+    - transformers=4.22.2
+    - datasets=2.5.2
+    - git+https://github.com/openai/whisper.git
+    - pydub=0.25.1
+    - levenshtein=0.20.5
+    - fuzzysearch=0.7.3
+    - fuzzywuzzy=0.18.0
