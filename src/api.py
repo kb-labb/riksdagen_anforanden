@@ -69,6 +69,8 @@ def get_audio_file(audiofileurl, backoff_factor=0.2):
     Returns
     """
 
+    os.makedirs("data/audio", exist_ok=True)
+
     for i in range(3):
         backoff_time = backoff_factor * (2**i)
         anforanden_media = requests.get(audiofileurl)
