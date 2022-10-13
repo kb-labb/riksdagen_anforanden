@@ -72,19 +72,19 @@ def get_audio_file(audiofileurl, backoff_factor=0.2):
     os.makedirs("data/audio", exist_ok=True)
 
     for i in range(3):
-        backoff_time = backoff_factor * (2**i)
-        anforanden_media = requests.get(audiofileurl)
         file_path = os.path.join("data", "audio", audiofileurl.rsplit("/")[-1])
 
         if os.path.exists(file_path):
             print(f"File {file_path} already downloaded.")
             break
 
+        backoff_time = backoff_factor * (2**i)
+        anforanden_media = requests.get(audiofileurl)
+
         if anforanden_media.status_code == 200:
             with open(file_path, "wb") as f:
                 f.write(anforanden_media.content)
                 return file_path
-
         else:
             print(f"audiofileurl {audiofileurl} failed with code {anforanden_media.status_code}")
 

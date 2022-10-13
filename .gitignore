@@ -1,4 +1,8 @@
-/data
-__pycache__
+# Ignore
+data/*
+__pycache__/
 stable_whisper.py
 *.mp3
+
+# Allow
+!data/anforande_metadata_links.txt
