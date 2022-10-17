@@ -18,3 +18,6 @@ dependencies:
     - fuzzysearch=0.7.3
     - fuzzywuzzy=0.18.0
     - nltk=3.7
+    - beautifulsoup=4.11.1
+    - lxml=4.9.1
+    - aeneas=1.7.3.0
