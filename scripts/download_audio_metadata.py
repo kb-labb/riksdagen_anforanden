@@ -1,7 +1,10 @@
 import multiprocessing as mp
 import pandas as pd
+import locale
 from src.api import get_audio_metadata
 from tqdm.contrib.concurrent import process_map  # multiprocessing from tqdm
+
+locale.setlocale(locale.LC_ALL, "sv_SE.UTF-8")  # Swedish date format
 
 df = pd.read_parquet("data/df_anforanden_metadata.parquet")
 df = df[~pd.isna(df["rel_dok_id"])]
@@ -20,7 +23,7 @@ df_list = process_map(
 
 df_audiometa = pd.concat(df_list, axis=0)
 df_audiometa = df_audiometa.reset_index(drop=True)
-
+df_audiometa["debatedate"] = pd.to_datetime(df_audiometa["debatedate"], format="%d %B %Y")
 
 ## Add direct timestamped link to webb-tv to start video where a speech begins
 # df_audiometa["debateurl_timestamp"] = (

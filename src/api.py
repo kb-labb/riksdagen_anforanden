@@ -7,15 +7,15 @@ from src.data import preprocess_audio_metadata
 
 def get_audio_metadata(rel_dok_id, backoff_factor=0.2):
     """
-    Download metadata for anföranden to find which ones have related
+    Download metadata for anföranden (speeches) to find which ones have related
     media files at riksdagens öppna data. The anföranden which have a
     rel_dok_id tend to be the ones that have associated media files.
 
     Args:
         rel_dok_id (str): rel_dok_id for the session. Retrieved from text
-        transcript files at https://data.riksdagen.se/data/anforanden/.
+            transcript files at https://data.riksdagen.se/data/anforanden/.
         backoff_factor (int): Slow down the request frequency if riksdagen's
-        API rejects requests.
+            API rejects requests.
 
     Returns:
         dict: Nested metadata fields with transcribed texts, media file
@@ -25,30 +25,30 @@ def get_audio_metadata(rel_dok_id, backoff_factor=0.2):
 
     for i in range(3):
         backoff_time = backoff_factor * (2**i)
-        anforande_metadata = requests.get(f"{base_url}{rel_dok_id}")
+        speech_metadata = requests.get(f"{base_url}{rel_dok_id}")
 
-        if anforande_metadata.status_code == 200:
+        if speech_metadata.status_code == 200:
 
             try:
-                anforande_metadata = loads(anforande_metadata.text)
+                speech_metadata = loads(speech_metadata.text)
             except Exception as e:
                 print(f"JSON decoding failed for rel_dok_id {rel_dok_id}. \n")
                 print(e)
                 return None
 
-            if "speakers" not in anforande_metadata["videodata"][0]:
+            if "speakers" not in speech_metadata["videodata"][0]:
                 return None
 
-            if anforande_metadata["videodata"][0]["streams"] is None:
+            if speech_metadata["videodata"][0]["streams"] is None:
                 print(f"rel_dok_id {rel_dok_id} has no streams (media files).")
                 return None
 
-            df = preprocess_audio_metadata(anforande_metadata)
+            df = preprocess_audio_metadata(speech_metadata)
             return df
 
         else:
             print(
-                f"""rel_dok_id {rel_dok_id} failed with code {anforande_metadata.status_code}.
+                f"""rel_dok_id {rel_dok_id} failed with code {speech_metadata.status_code}.
                 Retry attempt {i}: Retrying in {backoff_time} seconds"""
             )
 
@@ -62,9 +62,9 @@ def get_audio_file(audiofileurl, backoff_factor=0.2):
 
     Args:
         audiofileurl (str): Download URL for the mp3 audio file.
-        E.g: https://mhdownload.riksdagen.se/VOD1/PAL169/2442205160012270021_aud.mp3
+            E.g: https://mhdownload.riksdagen.se/VOD1/PAL169/2442205160012270021_aud.mp3
         backoff_factor (int): Slow down the request frequency if riksdagen's
-        API rejects requests.
+            API rejects requests.
 
     Returns
     """
@@ -79,13 +79,13 @@ def get_audio_file(audiofileurl, backoff_factor=0.2):
             break
 
         backoff_time = backoff_factor * (2**i)
-        anforanden_media = requests.get(audiofileurl)
+        speeches_media = requests.get(audiofileurl)
 
-        if anforanden_media.status_code == 200:
+        if speeches_media.status_code == 200:
             with open(file_path, "wb") as f:
-                f.write(anforanden_media.content)
+                f.write(speeches_media.content)
                 return file_path
         else:
-            print(f"audiofileurl {audiofileurl} failed with code {anforanden_media.status_code}")
+            print(f"audiofileurl {audiofileurl} failed with code {speeches_media.status_code}")
 
         time.sleep(backoff_time)

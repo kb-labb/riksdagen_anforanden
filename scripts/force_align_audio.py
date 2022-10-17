@@ -1,13 +1,57 @@
+import os
+import multiprocessing as mp
 from aeneas.executetask import ExecuteTask
 from aeneas.task import Task
+from aeneas.audiofile import AudioFileUnsupportedFormatError
+from tqdm import tqdm
 
-config_string = u"task_language=swe|is_text_type=plain|os_task_file_format=json"
-task = Task(config_string=config_string)
 
-task.__dict__
-task.audio_file_path_absolute = "test.mp3"
-task.text_file_path_absolute = "data/text/anf1.txt"
-task.sync_map_file_path_absolute = "map3.json"
+def force_align_audio_transcript(files):
+    """
+    Force-align audio and transcript using Aeneas.
 
-ExecuteTask(task).execute()
-task.output_sync_map_file()
+    Parameters:
+        files (list): List of tuples/lists with audio and transcript filenames.
+            [[audiofile1, transcriptfile1], [audiofile2, transcriptfile2], ...].
+            Can take a single pair of filenames as well.
+    """
+    config_string = "task_language=swe|is_text_type=plain|os_task_file_format=json"
+    task = Task(config_string=config_string)
+
+    audiofile = files[0]
+    transcriptfile = files[1]
+
+    folder = os.path.dirname(audiofile)
+    filename = audiofile.rsplit("/")[-1].split(".")[0]
+    json_file = os.path.abspath(os.path.join("data/audio", folder, filename + ".json"))
+
+    if os.path.exists(json_file):
+        print("File " + json_file + " already exists.")
+        return None
+
+    task.sync_map_file_path_absolute = json_file
+
+    try:
+        task.audio_file_path_absolute = os.path.abspath(os.path.join("data/audio", audiofile))
+        task.text_file_path_absolute = os.path.abspath(os.path.join("data/audio", transcriptfile))
+    except AudioFileUnsupportedFormatError as audioerror:
+        print(audioerror)
+        print("Audiofile " + audiofile + " is corrupt or not supported.")
+
+    try:
+        print("Aligning " + audiofile + " and " + transcriptfile)
+        ExecuteTask(task).execute()
+        task.output_sync_map_file()
+    except Exception as e:
+        print(e)
+        print("Failed to align " + audiofile + " and " + transcriptfile)
+
+
+if __name__ == "__main__":
+    with open("data/speeches_files_aeneas.txt", "r") as f:
+        files = f.readlines()
+
+    files = [tuple(file.split()) for file in files]
+    pool = mp.Pool(8)
+    pool.map(force_align_audio_transcript, tqdm(files, total=len(files)), chunksize=4)
+    pool.close()

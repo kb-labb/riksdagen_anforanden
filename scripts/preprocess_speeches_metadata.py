@@ -16,12 +16,12 @@ json_files = [
     if filename.endswith(".json")
 ]
 
-json_anforanden = []
+json_speeches = []
 for file in json_files:
     with open(os.path.join(file), "r", encoding="utf-8-sig") as f:
-        json_anforanden.append(json.load(f)["anforande"])
+        json_speeches.append(json.load(f)["anforande"])
 
-df = pd.json_normalize(json_anforanden)
+df = pd.json_normalize(json_speeches)
 df = df.drop(columns=["anforandetext"])
 df["anforande_nummer"] = df["anforande_nummer"].astype(int)
 
