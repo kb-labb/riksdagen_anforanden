@@ -1,6 +1,11 @@
 import multiprocessing as mp
 import pandas as pd
+import sys
 from tqdm.contrib.concurrent import process_map
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from src.api import get_audio_file
 from src.data import audio_to_dokid_folder
 

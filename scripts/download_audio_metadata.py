@@ -1,6 +1,11 @@
 import multiprocessing as mp
 import pandas as pd
 import locale
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from src.api import get_audio_metadata
 from tqdm.contrib.concurrent import process_map  # multiprocessing from tqdm
 
