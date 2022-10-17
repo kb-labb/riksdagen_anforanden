@@ -47,7 +47,7 @@ The audio files we've downloaded cover entire debates, sometimes spanning over m
 python scripts/split_audio_by_speeches.py
 ```
 
-We repeat the process for the speech text transcripts. A sentence tokenized text file is created for each individual speech, with newline separated sentences (one sentence per line). If the split audio file is found under `data/audio/GS01TU11/2442210030027487721_aud_0_166.mp3`, then the text file will be created as `data/audio/GS01TU11/2442210030027487721_aud_0_166.txt`. See []
+We repeat the process for the speech text transcripts. A sentence tokenized text file is created for each individual speech, with newline separated sentences (one sentence per line). If the split audio file is found under `data/audio/GS01TU11/2442210030027487721_aud_0_166.mp3`, then the text file will be created as `data/audio/GS01TU11/2442210030027487721_aud_0_166.txt`. See [split_text_by_speeches.py](https://github.com/kb-labb/riksdagen_anforanden/blob/main/scripts/split_text_by_speeches.py).
 
 ```bash
 python scripts/split_text_by_speeches.py
