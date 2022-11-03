@@ -44,6 +44,7 @@ def get_audio_metadata(rel_dok_id, backoff_factor=0.2):
                 return None
 
             df = preprocess_audio_metadata(speech_metadata)
+            df["rel_dok_id"] = rel_dok_id
             return df
 
         else:
@@ -84,7 +85,7 @@ def get_audio_file(audiofileurl, backoff_factor=0.2):
         if speeches_media.status_code == 200:
             with open(file_path, "wb") as f:
                 f.write(speeches_media.content)
-                return file_path
+                # return file_path
         else:
             print(f"audiofileurl {audiofileurl} failed with code {speeches_media.status_code}")
 

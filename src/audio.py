@@ -4,7 +4,7 @@ from pydub import AudioSegment
 from nltk import sent_tokenize
 
 
-def split_audio_by_speech(df, audio_dir="data/audio"):
+def split_audio_by_speech(df, audio_dir="data/audio", file_exists_check=False):
     """
     Split audio file by anförande (speech) and save to disk in folder for specific dokid.
 
@@ -13,6 +13,8 @@ def split_audio_by_speech(df, audio_dir="data/audio"):
             df["filename"] looks like "H901KrU5/2442204200009516121_aud.mp3",
             i.e. {dokid}/{filename}.
         audio_dir (str): Path to directory where audio files should be saved.
+        file_exists_check (bool): If True, checks whether split file already exists and
+            skips it. When False, reprocesses all files.
     """
 
     filename_dokid = df["filename"].iloc[0]
@@ -29,19 +31,20 @@ def split_audio_by_speech(df, audio_dir="data/audio"):
             Path(filename_dokid).parent / Path(filename_dokid).stem
         )  # Filename without extension.
 
-        filename_speech = (
+        filename_speech = Path(
             f"{filename}_{segment['start']}_{segment['start'] + segment['duration']}.mp3"
         )
 
-        # if os.path.exists(os.path.join(audio_dir, filename_speech)):
-        #     print(f"File {filename_speech} already exists.")
-        #     continue
+        if file_exists_check:
+            if os.path.exists(os.path.join(audio_dir, filename_speech)):
+                print(f"File {filename_speech} already exists.")
+                continue
 
         filenames_speeches.append(filename_speech)
         split.export(os.path.join(audio_dir, filename_speech), format="mp3")
 
     df["filename_anforande_audio"] = filenames_speeches
-    print(filename)
+    print(f"{filename_speech.parent} complete", end="\r", flush=True)
     return df
 
 
@@ -80,12 +83,16 @@ def split_text_by_speech(df, text_dir="data/audio"):
             directory as audio files.
     """
 
-    df["lines"] = df["anftext"].apply(lambda x: sent_tokenize(x))
+    df["lines"] = df["anftext"].apply(lambda x: sent_tokenize(x) if x is not None else [None])
     df["filename_anforande_text"] = df["filename_anforande_audio"].apply(
         lambda x: Path(x).parent / f"{Path(x).stem}.txt"
     )
 
     for _, row in df.iterrows():
+
+        if row["lines"][0] is None:
+            continue
+
         with open(os.path.join(text_dir, row["filename_anforande_text"]), "w") as f:
             for line in row["lines"]:
                 f.write(line + "\n")

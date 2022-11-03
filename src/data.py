@@ -47,16 +47,31 @@ def preprocess_audio_metadata(speech_metadata):
         ]
     ]
 
-    df["anftext"] = df["anftext"].str.replace(
-        r"STYLEREF Kantrubrik \\+\* MERGEFORMAT", "", regex=True
-    )
-    df["anftext"] = df["anftext"].str.replace(r"Svar på interpellationer", "", regex=True)
-    df["anftext"] = df["anftext"].str.replace(r"<.*?>", " ", regex=True)  # Remove HTML tags
+    df = preprocess_text(df)
+
+    return df
+
+
+def preprocess_text(df, textcol="anftext"):
+    """
+    Preprocess the text field.
+
+    Args:
+        df (pd.DataFrame): A pandas dataframe that contains text column with speeches.
+        textcol (str): The name of the text column.
+
+    Returns:
+        pd.DataFrame: A pandas dataframe with preprocessed text column.
+    """
+
+    df[textcol] = df[textcol].str.replace(r"STYLEREF Kantrubrik \\+\* MERGEFORMAT", "", regex=True)
+    df[textcol] = df[textcol].str.replace(r"Svar på interpellationer", "", regex=True)
+    df[textcol] = df[textcol].str.replace(r"<.*?>", " ", regex=True)  # Remove HTML tags
     # Remove text within parentheses
-    df["anftext"] = df["anftext"].str.replace(r"\(.*?\)", "", regex=True)
-    df["anftext"] = df["anftext"].str.strip()
+    df[textcol] = df[textcol].str.replace(r"\(.*?\)", "", regex=True)
+    df[textcol] = df[textcol].str.strip()
     # Remove multiple spaces
-    df["anftext"] = df["anftext"].str.replace(r"(\s){2,}", " ", regex=True)
+    df[textcol] = df[textcol].str.replace(r"(\s){2,}", " ", regex=True)
 
     return df
 
@@ -87,3 +102,47 @@ def audio_to_dokid_folder(df, folder="data/audio"):
                 print(f"File already in destination folder: {dst}")
             else:
                 print(f"File not found: {src}")
+
+
+def audiofile_exists(dokid, filename, folder="data/audio"):
+    """
+    Check if audio file exists.
+    Can exist in either {folder}/{dokid}/{filename} or {folder}/{filename}.
+
+    Args:
+        dokid (str): The dokid of the speech. dokid is the folder where the
+            audiofile is moved after being download.
+        filename (str): The filename of the audio file.
+        folder (str): The folder where the audio files are stored.
+
+    Returns:
+        bool: True if audio file exists, otherwise False.
+    """
+
+    src = os.path.join(folder, filename)
+    dst = os.path.join(folder, dokid, filename)
+
+    if os.path.exists(src) or os.path.exists(dst):
+        return True
+    else:
+        return False
+
+
+def coalesce_columns(df, col1="anftext", col2="anforandetext"):
+    """
+    Coalesce text columns in df, replacing NaN values (i.e. missing speeches)
+    in first column with values from second column.
+
+    Args:
+        df (pd.DataFrame): A pandas dataframe with the relevant metadata fields.
+        col1 (str): The name of the 1st text column in df whose NaNs we are filling.
+        col2 (str): The name of the 2nd text column in df.
+
+    Returns:
+        pd.DataFrame: A pandas dataframe with the coalesced text column.
+    """
+
+    df[col1] = df[col1].fillna(df[col2])
+    df = df.drop(columns=[col2])
+
+    return df
