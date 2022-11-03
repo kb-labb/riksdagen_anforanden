@@ -10,7 +10,9 @@ from src.audio import split_text_by_speech
 
 df = pd.read_parquet("data/df_audio_metadata.parquet")
 df_groups = df.groupby("dokid")
-df_list = [df_groups.get_group(x) for x in df_groups.groups]  # list of dfs, one for each dokid
+df_list = [
+    df_groups.get_group(x).copy() for x in df_groups.groups
+]  # list of dfs, one for each dokid
 
 df_dokids = []
 for df_dokid in tqdm(df_list, total=len(df_list)):

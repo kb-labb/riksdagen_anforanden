@@ -18,7 +18,9 @@ df = pd.read_parquet("data/df_audio_metadata.parquet")
 df = get_corrupt_audio_files(df)
 
 df_groups = df.groupby("dokid")
-df_list = [df_groups.get_group(x) for x in df_groups.groups]  # list of dfs, one for each dokid
+df_list = [
+    df_groups.get_group(x).copy() for x in df_groups.groups
+]  # list of dfs, one for each dokid
 
 pool = mp.Pool(20)
 df_dokids = pool.map(split_audio_by_speech, tqdm(df_list, total=len(df_list)), chunksize=4)

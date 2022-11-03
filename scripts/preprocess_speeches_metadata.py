@@ -2,6 +2,7 @@ import pandas as pd
 import argparse
 import json
 import os
+from src.data import preprocess_text
 
 parser = argparse.ArgumentParser(
     description="""Read json files of riksdagens anföranden, save relevant metadata fields to file."""
@@ -22,11 +23,11 @@ for file in json_files:
         json_speeches.append(json.load(f)["anforande"])
 
 df = pd.json_normalize(json_speeches)
-df = df.drop(columns=["anforandetext"])
+# df = df.drop(columns=["anforandetext"])
 df["anforande_nummer"] = df["anforande_nummer"].astype(int)
+df = preprocess_text(df, textcol="anforandetext")
 
 df = df.sort_values(["dok_id", "anforande_nummer"]).reset_index(drop=True)
 df.loc[df["rel_dok_id"] == "", "rel_dok_id"] = None
-
 
 df.to_parquet(os.path.join(args.dest_folder, "df_anforanden_metadata.parquet"))
