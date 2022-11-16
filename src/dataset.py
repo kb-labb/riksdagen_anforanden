@@ -1,9 +1,10 @@
+import librosa
+import pandas as pd
 import torch
 import torchaudio
-import pandas as pd
-from transformers import pipeline
-from tqdm import tqdm
 from torch.utils.data import Dataset
+from tqdm import tqdm
+from transformers import pipeline
 
 
 class AnforandeDataset(Dataset):
@@ -22,6 +23,32 @@ class AnforandeDataset(Dataset):
         # https://huggingface.co/docs/transformers/v4.24.0/en/main_classes/pipelines#transformers.AutomaticSpeechRecognitionPipeline.__call__.inputs
         # dict form input
         inputs = {"sampling_rate": sampling_rate, "raw": speech_array.numpy()}
+        return inputs
+
+
+class DiarizationDataset(Dataset):
+    def __init__(self, metadata_dict):
+        self.filepaths = metadata_dict["filename_anforande_audio"]
+        self.dokid = metadata_dict["dokid"]
+        self.anforande_nummer = metadata_dict["anforande_nummer"]
+
+    def __len__(self):
+        return len(self.filepaths)
+
+    def __getitem__(self, idx):
+        audio_filepath = "data/audio/" + self.filepaths[idx]
+        # speech_array, sample_rate = librosa.load(audio_filepath, sr=16000)
+        speech_array, sample_rate = torchaudio.load(audio_filepath)
+        speech_array = torch.mean(speech_array, dim=0)
+
+        # pyannote.audio pipeline expects a dict with keys "waveform" and "sampling_rate"
+        inputs = {
+            "sample_rate": sample_rate,
+            "waveform": speech_array.to("cuda"),
+            "dokid": self.dokid[idx],
+            "anforande_nummer": self.anforande_nummer[idx],
+            "filename_anforande_audio": self.filepaths[idx],
+        }
         return inputs
 
 
