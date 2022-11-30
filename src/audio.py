@@ -20,6 +20,8 @@ def split_audio_by_speech(df, audio_dir="data/audio", file_exists_check=False):
     filename_dokid = df["filename"].iloc[0]
     segments = df[["start", "duration"]].to_dict(orient="records")
     sound = AudioSegment.from_mp3(os.path.join(audio_dir, filename_dokid))
+    sound = sound.set_frame_rate(16000)
+    sound = sound.set_channels(1)
 
     filenames_speeches = []
     for segment in segments:
@@ -32,7 +34,7 @@ def split_audio_by_speech(df, audio_dir="data/audio", file_exists_check=False):
         )  # Filename without extension.
 
         filename_speech = Path(
-            f"{filename}_{segment['start']}_{segment['start'] + segment['duration']}.mp3"
+            f"{filename}_{segment['start']}_{segment['start'] + segment['duration']}.wav"
         )
 
         if file_exists_check:
@@ -41,14 +43,14 @@ def split_audio_by_speech(df, audio_dir="data/audio", file_exists_check=False):
                 continue
 
         filenames_speeches.append(filename_speech)
-        split.export(os.path.join(audio_dir, filename_speech), format="mp3")
+        split.export(os.path.join(audio_dir, filename_speech), format="wav")
 
     df["filename_anforande_audio"] = filenames_speeches
     print(f"{filename_speech.parent} complete", end="\r", flush=True)
     return df
 
 
-def get_corrupt_audio_files(df, audio_dir="data/audio"):
+def get_corrupt_audio_files(df, audio_dir="data/audio", return_subset=True):
     """
     Get list of corrupt audio files that were not able to be force aligned.
     We retry those mp3 files that have no corresponding json sync file.
@@ -57,6 +59,9 @@ def get_corrupt_audio_files(df, audio_dir="data/audio"):
         df (pandas.DataFrame): DataFrame with all audio metadata, including
         filenames of audio files.
         audio_dir (str): Path to directory where audio files were saved.
+        return_subset (bool): If True, returns subset of df with corrupt audio files.
+            If False, returns entire df with column "corrupt" indicating whether
+            audio file is corrupt or not.
     """
 
     def json_exists(filename):
@@ -65,7 +70,11 @@ def get_corrupt_audio_files(df, audio_dir="data/audio"):
         )
 
     df["corrupt"] = df["filename_anforande_audio"].apply(lambda x: not json_exists(x))
-    return df[df["corrupt"] == True].reset_index(drop=True)
+
+    if return_subset:
+        return df[df["corrupt"]].reset_index(drop=True)
+    else:
+        return df
 
 
 def split_text_by_speech(df, text_dir="data/audio"):

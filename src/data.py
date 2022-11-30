@@ -1,7 +1,10 @@
 import shutil
 import os
 import pandas as pd
+import string
+import re
 from tqdm import tqdm
+from num2words import num2words
 
 
 def preprocess_audio_metadata(speech_metadata):
@@ -145,4 +148,31 @@ def coalesce_columns(df, col1="anftext", col2="anforandetext"):
     df[col1] = df[col1].fillna(df[col2])
     df = df.drop(columns=[col2])
 
+    return df
+
+
+def normalize_text(df, column_in, column_out):
+    """
+    Normalize speech text transcript by removing punctuation, converting numbers to words,
+    replacing hyphens joining words with whitespace, and lowercasing the text.
+
+    Args:
+        df (pd.DataFrame): A pandas dataframe that contains text column anftext with speeches.
+        column_in (str): The name of the text column to normalize.
+        column_out (str): The name of the normalized text column.
+    Returns:
+        pd.DataFrame: A pandas dataframe with normalized text column `column_out`.
+    """
+    df[column_out] = df[column_in].apply(
+        lambda x: None if x is None else x.translate(str.maketrans("", "", string.punctuation))
+    )
+    df[column_out] = df[column_out].str.lower()
+    df[column_out] = df[column_out].apply(
+        lambda x: None
+        if x is None
+        else re.sub(r"\d+", lambda m: num2words(int(m.group(0)), lang="sv"), x)
+    )
+    df[column_out] = df[column_out].str.replace("\xa0", " ")
+    df[column_out] = df[column_out].str.replace("(?<=\w)-(?=\w)", " ", regex=True)
+    df[column_out] = df[column_out].str.replace(" +", " ", regex=True)
     return df
