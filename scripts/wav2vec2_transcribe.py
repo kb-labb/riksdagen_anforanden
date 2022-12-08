@@ -32,4 +32,6 @@ for index, row in tqdm(df.iterrows(), total=len(df)):
         )
 
 df_inference = pd.DataFrame(texts)
+df_inference = df_inference.rename(columns={"text": "anftext_inference"})
+df_inference.loc[df_inference["anftext_inference"] == "", "anftext_inference"] = None
 df_inference.to_parquet("data/df_inference.parquet")
