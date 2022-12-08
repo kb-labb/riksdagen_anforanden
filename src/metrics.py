@@ -122,7 +122,9 @@ def contiguous_regions(condition):
     return idx
 
 
-def contiguous_ngram_match(anftext_normalized, anftext_inference, n=6, threshold=1):
+def contiguous_ngram_match(
+    anftext_normalized, anftext_inference, n=6, threshold=1, max_non_match=8
+):
     """
     Get (fuzzy-ish) contiguous matching indices for anftext_inference and anftext_normalized
     using ngrams of several different sizes (from 1 to n) to construct weighted scores.
@@ -132,6 +134,7 @@ def contiguous_ngram_match(anftext_normalized, anftext_inference, n=6, threshold
         anftext_inference (str): Text transcription of speech audio file by wav2vec2.
         n (int): Maximum ngram size. Will use 1 to n ngram size.
         threshold (float): Weighted ngram score threshold for being considered a match.
+        max_non_match (int): Maximum number of non-matching continuous words allowed.
 
     Returns:
         tuple: Start and end indices of contiguous fuzzy match.
@@ -144,7 +147,7 @@ def contiguous_ngram_match(anftext_normalized, anftext_inference, n=6, threshold
     ):
         return None, None
 
-    max_non_match_allowed = n + 2  # Max contiguous non matching length allowed
+    max_non_match_allowed = max_non_match  # Max contiguous non matching length allowed
     ngram_match_scores = get_weighted_ngram_score(anftext_normalized, anftext_inference, n=n)
     # Contiguous region indices satisfying the condition ngram_match_scores > threshold
     ngram_match_indices = contiguous_regions(ngram_match_scores > threshold)
@@ -185,8 +188,15 @@ def get_fuzzy_match_word_indices(anftext_inference, alignment):
     word_spans = TreebankWordTokenizer().span_tokenize(anftext_inference)
     word_spans = np.array(list(word_spans))
 
-    start_index = np.where(word_spans <= alignment.src_start)[0][-1]
-    end_index = np.where(word_spans >= alignment.src_end)[0][0]
+    if alignment.src_start == 0:
+        start_index = 0
+    else:
+        start_index = np.where(word_spans <= alignment.src_start)[0][-1]
+
+    if alignment.src_end == len(anftext_inference):
+        end_index = len(word_spans)
+    else:
+        end_index = np.where(word_spans >= alignment.src_end)[0][0]
 
     return start_index, end_index
 

@@ -45,4 +45,5 @@ with mp.Pool(26) as p:
     )
 
 df["valid_audio"] = valid_audio
+df["valid_audio"] = df["valid_audio"].str[0]
 df.to_parquet("data/df_audio_metadata.parquet")

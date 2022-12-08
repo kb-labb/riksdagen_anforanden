@@ -55,6 +55,7 @@ df_audiometa = df_audiometa.merge(
 
 # Replace NaN in anftext column with text from anforandetext
 df_audiometa = coalesce_columns(df_audiometa, col1="anftext", col2="anforandetext")
-
+# Drop any duplicates
+df_audiometa = df_audiometa[~df_audiometa.duplicated(keep="first")].reset_index(drop=True)
 
 df_audiometa.to_parquet("data/df_audio_metadata.parquet", index=False)

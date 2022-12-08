@@ -167,12 +167,19 @@ def normalize_text(df, column_in, column_out):
         lambda x: None if x is None else x.translate(str.maketrans("", "", string.punctuation))
     )
     df[column_out] = df[column_out].str.lower()
+    # df[column_out] = df[column_out].str.replace("\xa0", " ")
+    df[column_out] = df[column_out].str.normalize("NFKC")  # Normalize unicode characters
+    # Remove hyphen between words
+    df[column_out] = df[column_out].str.replace("(?<=\w)-(?=\w)", " ", regex=True)
+    # Remove multiple spaces and replace with single space
+    df[column_out] = df[column_out].str.replace(" +", " ", regex=True)
+    # Remove whitespace between numbers
+    df[column_out] = df[column_out].str.replace("(?<=\d) (?=\d)", "", regex=True)
+    # Convert numbers to words
     df[column_out] = df[column_out].apply(
         lambda x: None
         if x is None
         else re.sub(r"\d+", lambda m: num2words(int(m.group(0)), lang="sv"), x)
     )
-    df[column_out] = df[column_out].str.replace("\xa0", " ")
-    df[column_out] = df[column_out].str.replace("(?<=\w)-(?=\w)", " ", regex=True)
-    df[column_out] = df[column_out].str.replace(" +", " ", regex=True)
+
     return df
