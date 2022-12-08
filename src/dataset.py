@@ -27,10 +27,12 @@ class AnforandeDataset(Dataset):
 
 
 class DiarizationDataset(Dataset):
-    def __init__(self, metadata_dict):
-        self.filepaths = metadata_dict["filename_anforande_audio"]
-        self.dokid = metadata_dict["dokid"]
-        self.anforande_nummer = metadata_dict["anforande_nummer"]
+    def __init__(self, df):
+        # Use pandas, numpy or pyarrow to avoid memory usage getting out of control
+        # https://github.com/pytorch/pytorch/issues/13246#issuecomment-905703662
+        self.filepaths = df["filename_anforande_audio"]
+        self.dokid = df["dokid"]
+        self.anforande_nummer = df["anforande_nummer"]
 
     def __len__(self):
         return len(self.filepaths)
@@ -39,12 +41,14 @@ class DiarizationDataset(Dataset):
         audio_filepath = "data/audio/" + self.filepaths[idx]
         # speech_array, sample_rate = librosa.load(audio_filepath, sr=16000)
         speech_array, sample_rate = torchaudio.load(audio_filepath)
-        speech_array = torch.mean(speech_array, dim=0)
+
+        if speech_array.dim() >= 2:
+            speech_array = torch.mean(speech_array, dim=0)
 
         # pyannote.audio pipeline expects a dict with keys "waveform" and "sampling_rate"
         inputs = {
             "sample_rate": sample_rate,
-            "waveform": speech_array.to("cuda"),
+            "waveform": speech_array,
             "dokid": self.dokid[idx],
             "anforande_nummer": self.anforande_nummer[idx],
             "filename_anforande_audio": self.filepaths[idx],
