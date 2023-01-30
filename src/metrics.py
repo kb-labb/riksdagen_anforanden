@@ -123,7 +123,7 @@ def contiguous_regions(condition):
 
 
 def contiguous_ngram_match(
-    anftext_normalized, anftext_inference, n=6, threshold=1, max_non_match=8
+    anftext_normalized, anftext_inference, n=6, threshold=1, min_continuous_match=8, max_gap=30
 ):
     """
     Get (fuzzy-ish) contiguous matching indices for anftext_inference and anftext_normalized
@@ -134,10 +134,15 @@ def contiguous_ngram_match(
         anftext_inference (str): Text transcription of speech audio file by wav2vec2.
         n (int): Maximum ngram size. Will use 1 to n ngram size.
         threshold (float): Weighted ngram score threshold for being considered a match.
-        max_non_match (int): Maximum number of non-matching continuous words allowed.
+        min_continous_match (int): Minimum continuous word matches for the region to
+            be considered contiguous.
+        max_gap (int): Maximum gap (in words) between contiguous region and the next/previous
+            region for it to be seen as the start/end index of a larger joined together contiguous
+            region.
 
     Returns:
-        tuple: Start and end indices of contiguous fuzzy match.
+        tuple: Start and end indices of contiguous fuzzy match in anftext_inference
+            (or whatever text is input as second arg).
     """
 
     if (
@@ -147,7 +152,6 @@ def contiguous_ngram_match(
     ):
         return None, None
 
-    max_non_match_allowed = max_non_match  # Max contiguous non matching length allowed
     ngram_match_scores = get_weighted_ngram_score(anftext_normalized, anftext_inference, n=n)
     # Contiguous region indices satisfying the condition ngram_match_scores > threshold
     ngram_match_indices = contiguous_regions(ngram_match_scores > threshold)
@@ -156,12 +160,30 @@ def contiguous_ngram_match(
     end_index = None
 
     for i in range(0, len(ngram_match_indices)):
-        if ngram_match_indices[i][1] - ngram_match_indices[i][0] > max_non_match_allowed:
+        if ngram_match_indices[i][1] - ngram_match_indices[i][0] > min_continuous_match:
+            try:
+                next_region_gap = ngram_match_indices[i + 1][0] - ngram_match_indices[i][1]
+
+                if next_region_gap > max_gap:
+                    # If gap is larger than max_gap, then this is not the start of a contiguous region
+                    continue
+            except IndexError:
+                pass
+
             start_index = ngram_match_indices[i][0]
             break
 
     for i in reversed(range(0, len(ngram_match_indices))):
-        if ngram_match_indices[i][1] - ngram_match_indices[i][0] > max_non_match_allowed:
+        if ngram_match_indices[i][1] - ngram_match_indices[i][0] > min_continuous_match:
+
+            try:
+                previous_region_gap = ngram_match_indices[i][0] - ngram_match_indices[i - 1][1]
+
+                if previous_region_gap > max_gap:
+                    continue
+            except IndexError:
+                pass
+
             end_index = ngram_match_indices[i][1]
             break
 

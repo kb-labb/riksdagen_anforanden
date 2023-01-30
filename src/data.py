@@ -75,6 +75,8 @@ def preprocess_text(df, textcol="anftext"):
     df[textcol] = df[textcol].str.strip()
     # Remove multiple spaces
     df[textcol] = df[textcol].str.replace(r"(\s){2,}", " ", regex=True)
+    # Replace &amp; with &
+    df[textcol] = df[textcol].str.replace(r"&amp;", "&", regex=True)
 
     return df
 
