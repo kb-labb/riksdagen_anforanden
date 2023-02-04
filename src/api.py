@@ -40,7 +40,9 @@ def get_audio_metadata(rel_dok_id, backoff_factor=0.2):
                 return None
 
             if speech_metadata["videodata"][0]["streams"] is None:
-                print(f"rel_dok_id {rel_dok_id} has no streams (media files).")
+                print(
+                    f"rel_dok_id {rel_dok_id} has no streams (media files).", end="\r", flush=True
+                )
                 return None
 
             df = preprocess_audio_metadata(speech_metadata)
@@ -50,7 +52,9 @@ def get_audio_metadata(rel_dok_id, backoff_factor=0.2):
         else:
             print(
                 f"""rel_dok_id {rel_dok_id} failed with code {speech_metadata.status_code}.
-                Retry attempt {i}: Retrying in {backoff_time} seconds"""
+                Retry attempt {i}: Retrying in {backoff_time} seconds""",
+                end="\r",
+                flush=True,
             )
 
         time.sleep(backoff_time)
@@ -76,7 +80,7 @@ def get_audio_file(audiofileurl, backoff_factor=0.2):
         file_path = os.path.join("data", "audio", audiofileurl.rsplit("/")[-1])
 
         if os.path.exists(file_path):
-            print(f"File {file_path} already downloaded.")
+            print(f"File {file_path} has already downloaded.", end="\r", flush=True)
             break
 
         backoff_time = backoff_factor * (2**i)
@@ -87,6 +91,10 @@ def get_audio_file(audiofileurl, backoff_factor=0.2):
                 f.write(speeches_media.content)
                 # return file_path
         else:
-            print(f"audiofileurl {audiofileurl} failed with code {speeches_media.status_code}")
+            print(
+                f"audiofileurl {audiofileurl} failed with code {speeches_media.status_code}",
+                end="\r",
+                flush=True,
+            )
 
         time.sleep(backoff_time)

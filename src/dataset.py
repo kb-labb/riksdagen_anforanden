@@ -8,14 +8,18 @@ from transformers import pipeline
 
 
 class AnforandeDataset(Dataset):
-    def __init__(self, df):
+    def __init__(self, df, full_debate=False):
         self.df = df
+        self.full_debate = full_debate
 
     def __len__(self):
         len(self.df)
 
     def __getitem__(self, idx):
-        audio_filepath = "data/audio/" + df["filename_anforande_audio"].iloc[idx]
+        if self.full_debate:
+            audio_filepath = "data/audio/" + self.df["filename"].iloc[idx]
+        else:
+            audio_filepath = "data/audio/" + self.df["filename_anforande_audio"].iloc[idx]
         print(audio_filepath)
         speech_array, sampling_rate = torchaudio.load(audio_filepath)
         speech_array = torch.mean(speech_array, dim=0)
@@ -27,12 +31,18 @@ class AnforandeDataset(Dataset):
 
 
 class DiarizationDataset(Dataset):
-    def __init__(self, df):
+    def __init__(self, df, full_debate=False):
         # Use pandas, numpy or pyarrow to avoid memory usage getting out of control
         # https://github.com/pytorch/pytorch/issues/13246#issuecomment-905703662
-        self.filepaths = df["filename_anforande_audio"]
-        self.dokid = df["dokid"]
-        self.anforande_nummer = df["anforande_nummer"]
+
+        if full_debate:
+            self.df = df.groupby("dokid").first().reset_index()
+            self.filepaths = self.df["filename"]
+        else:
+            self.df = df
+            self.filepaths = self.df["filename_anforande_audio"]
+        self.dokid = self.df["dokid"]
+        self.anforande_nummer = self.df["anforande_nummer"]
 
     def __len__(self):
         return len(self.filepaths)
@@ -51,7 +61,7 @@ class DiarizationDataset(Dataset):
             "waveform": speech_array,
             "dokid": self.dokid[idx],
             "anforande_nummer": self.anforande_nummer[idx],
-            "filename_anforande_audio": self.filepaths[idx],
+            "filename": self.filepaths[idx],
         }
         return inputs
 

@@ -1,8 +1,11 @@
+import multiprocessing as mp
+
 import numpy as np
 from rapidfuzz import fuzz
 from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 from nltk.tokenize import TreebankWordTokenizer
 from nltk import ngrams
+from tqdm import tqdm
 
 
 def calculate_bleu(text1, text2):
@@ -145,11 +148,7 @@ def contiguous_ngram_match(
             (or whatever text is input as second arg).
     """
 
-    if (
-        anftext_normalized is None
-        or anftext_inference is None
-        or len(anftext_inference.split()) == 1
-    ):
+    if anftext_normalized is None or anftext_inference is None or len(anftext_inference.split()) == 1:
         return None, None
 
     ngram_match_scores = get_weighted_ngram_score(anftext_normalized, anftext_inference, n=n)
@@ -239,18 +238,12 @@ def contiguous_fuzzy_match(anftext_normalized, anftext_inference, threshold=55):
             along with fuzzy match score of the matching segment.
     """
 
-    if (
-        anftext_normalized is None
-        or anftext_inference is None
-        or len(anftext_inference.split()) <= 1
-    ):
+    if anftext_normalized is None or anftext_inference is None or len(anftext_inference.split()) <= 1:
         return None, None, None
 
     align = fuzz.partial_ratio_alignment(anftext_inference, anftext_normalized)
 
-    align_check = fuzz.partial_ratio_alignment(
-        anftext_inference[align.src_start : align.src_end], anftext_normalized
-    )
+    align_check = fuzz.partial_ratio_alignment(anftext_inference[align.src_start : align.src_end], anftext_normalized)
 
     # Sanity check to make sure the suggested alignment is correct
     if align_check.score < threshold and align.score < threshold:
@@ -267,3 +260,90 @@ def contiguous_fuzzy_match_star(args):
     Unpacks arguments and calls contiguous_fuzzy_match().
     """
     return contiguous_fuzzy_match(*args)
+
+
+def contiguous_ngram_indices(
+    df,
+    column_in,
+    column_out,
+    n=6,
+    threshold=1.3,
+    min_continuous_match=8,
+    max_gap=30,
+    processes=None,
+):
+    """
+    Find and return the indices of the contiguous text in column_out that
+    matches text in column_in.
+
+    Args:
+        df (pd.DataFrame): DataFrame containing column_in and column_out.
+        column_in (str): Column name of text to match against.
+        column_out (str): Column name of text we get matching indices for.
+            n (int): N-gram sizes 1 to n.
+        threshold (float): Threshold score for contiguous n-gram match to be considered a match.
+        min_continous_match (int): Minimum continuous word matches for the region to
+            be considered contiguous.
+        max_gap (int): Maximum gap (in words) between contiguous region and the next/previous
+            region for it to be seen as the start/end index of a larger joined together contiguous
+            region.
+        processes (int | NoneType): Number of processes to use for multiprocessing.
+            If None, use all available processes.
+    """
+
+    df
+
+    with mp.Pool(processes) as pool:
+        args = [
+            (text1, text2, n, threshold, min_continuous_match, max_gap)
+            for text1, text2 in zip(df[column_in], df[column_out])
+        ]
+        contiguous_ngram_list = list(
+            tqdm(
+                pool.imap(
+                    contiguous_ngram_match_star,
+                    args,
+                    chunksize=1,
+                ),
+                total=len(df),
+            )
+        )
+
+    return contiguous_ngram_list
+
+
+def contiguous_fuzzy_indices(
+    df,
+    column_in,
+    column_out,
+    threshold=55,
+    processes=None,
+):
+    """
+    Find and return the indices of the contiguous text in column_out that
+    matches text in column_in.
+
+    Args:
+        df (pd.DataFrame): DataFrame containing column_in and column_out.
+        column_in (str): Column name of text to match against.
+        column_out (str): Column name of text we get matching indices for.
+            n (int): N-gram sizes 1 to n.
+        threshold (int): Threshold score for the fuzzy match to return indices.
+        processes (int | NoneType): Number of processes to use for multiprocessing.
+            If None, use all available processes.
+    """
+
+    with mp.Pool(processes) as pool:
+        args = [(text1, text2, threshold) for text1, text2 in zip(df[column_in], df[column_out])]
+        contiguous_fuzzy_list = list(
+            tqdm(
+                pool.imap(
+                    contiguous_fuzzy_match_star,
+                    args,
+                    chunksize=1,
+                ),
+                total=len(df),
+            )
+        )
+
+    return contiguous_fuzzy_list
