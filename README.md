@@ -17,6 +17,8 @@ conda env create -f environment.yml
 
 ## Scripts
 
+**Note**: Instructions are currently out of date. They'll be updated once the dataset is released and code is cleaned up.
+
 1. Download speech dataset from Riksdagen's öppna data. Run [`download_text_anforanden.sh`](https://github.com/kb-labb/riksdagen_anforanden/blob/main/download_text_anforanden.sh) 
   
     ```bash
@@ -32,7 +34,7 @@ conda env create -f environment.yml
 3. Using the metadata from the above preprocessing step, we query a different API endpoint (https://data.riksdagen.se/api/mhs-vodapi?) to download metadata about media files associated with the speeches. We also grab the text of the speeches from this endpoint and clean it up ([download_audio_metadata.py](https://github.com/kb-labb/riksdagen_anforanden/blob/main/scripts/download_audio_metadata.py))
 
     ```bash
-    python scripts/download_audio_metatdata.py
+    python scripts/download_audio_metadata.py
     ```
 
 4. Use the download links from previous step to download the actual audio files associated with each debate ([download_audio.py](https://github.com/kb-labb/riksdagen_anforanden/blob/main/scripts/download_audio.py))
