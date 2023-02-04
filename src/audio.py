@@ -29,13 +29,9 @@ def split_audio_by_speech(df, audio_dir="data/audio", file_exists_check=False):
         end = (float(segment["start"]) + float(segment["duration"])) * 1000
         split = sound[start:end]
 
-        filename = (
-            Path(filename_dokid).parent / Path(filename_dokid).stem
-        )  # Filename without extension.
+        filename = Path(filename_dokid).parent / Path(filename_dokid).stem  # Filename without extension.
 
-        filename_speech = Path(
-            f"{filename}_{segment['start']}_{segment['start'] + segment['duration']}.wav"
-        )
+        filename_speech = Path(f"{filename}_{segment['start']}_{segment['start'] + segment['duration']}.wav")
 
         if file_exists_check:
             if os.path.exists(os.path.join(audio_dir, filename_speech)):
@@ -48,6 +44,25 @@ def split_audio_by_speech(df, audio_dir="data/audio", file_exists_check=False):
     df["filename_anforande_audio"] = filenames_speeches
     print(f"{filename_speech.parent} complete", end="\r", flush=True)
     return df
+
+
+def convert_mp3_to_wav(filename, audio_dir="data/audio", dest_dir="data/audio"):
+    """
+    Convert mp3 files to wav files.
+
+    Parameters:
+        filename (str): Relative filepath+filename of mp3 file inside the audio_dir.
+            For example "H901KrU5/2442204200009516121_aud.mp3".
+        audio_dir (str): Path to directory where audio files were saved.
+    """
+
+    sound = AudioSegment.from_mp3(os.path.join(audio_dir, filename))
+    sound = sound.set_frame_rate(16000)
+    sound = sound.set_channels(1)
+    # Create directory if it doesn't exist.
+    os.makedirs(os.path.join(dest_dir, Path(filename).parent), exist_ok=True)
+    sound.export(os.path.join(dest_dir, filename.replace(".mp3", ".wav")), format="wav")
+    print(f"Converted {filename} to wav", end="\r", flush=True)
 
 
 def get_corrupt_audio_files(df, audio_dir="data/audio", return_subset=True):
@@ -65,9 +80,7 @@ def get_corrupt_audio_files(df, audio_dir="data/audio", return_subset=True):
     """
 
     def json_exists(filename):
-        return os.path.exists(
-            Path(audio_dir) / Path(filename).parent / f"{Path(filename).stem}.json"
-        )
+        return os.path.exists(Path(audio_dir) / Path(filename).parent / f"{Path(filename).stem}.json")
 
     df["corrupt"] = df["filename_anforande_audio"].apply(lambda x: not json_exists(x))
 
