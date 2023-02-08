@@ -15,9 +15,7 @@ from src.dataset import DiarizationDataset
 
 df = pd.read_parquet("data/df_audio_metadata.parquet").reset_index(drop=True)
 df = df[df["valid_audio"]].reset_index(drop=True)
-df = df[(df["debatedate"].dt.year >= 2019) & (df["debatedate"].dt.year <= 2022)].reset_index(
-    drop=True
-)
+df = df[(df["debatedate"].dt.year >= 2019) & (df["debatedate"].dt.year <= 2022)].reset_index(drop=True)
 
 
 def custom_collate_fn(data):
@@ -33,9 +31,7 @@ def custom_collate_fn(data):
     anforande_nummer = [sample["anforande_nummer"] for sample in data]
     filename_anforande_audio = [sample["filename_anforande_audio"] for sample in data]
 
-    sample_rate = torch.stack(
-        sample_rate
-    )  # List of B 1-length vectors to single vector of dimension B
+    sample_rate = torch.stack(sample_rate)  # List of B 1-length vectors to single vector of dimension B
     dokid = dokid
     anforande_nummer = anforande_nummer
     filename_anforande_audio = filename_anforande_audio
@@ -52,7 +48,7 @@ def custom_collate_fn(data):
 
 
 df = df[["dokid", "anforande_nummer", "filename_anforande_audio"]]
-diarization = DiarizationDataset(df)
+diarization = DiarizationDataset(df, full_debate=True, folder="data/audio")
 diarization_loader = DataLoader(
     diarization,
     batch_size=1,
@@ -67,9 +63,7 @@ pipe = Pipeline.from_pretrained("pyannote/speaker-diarization@2.1", use_auth_tok
 speakers = []
 for index, batch in tqdm(enumerate(diarization_loader), total=len(diarization_loader)):
 
-    audio_filepath = [
-        os.path.join("data/audio", filename) for filename in batch["filename_anforande_audio"]
-    ]
+    audio_filepath = [os.path.join("data/audio", filename) for filename in batch["filename"]]
 
     for i in range(0, len(batch["waveform"])):
 
@@ -89,7 +83,6 @@ for index, batch in tqdm(enumerate(diarization_loader), total=len(diarization_lo
             )
             df_speaker["dokid"] = batch["dokid"][i]
             df_speaker["anforande_nummer"] = int(batch["anforande_nummer"][i])
-            df_speaker["filename_anforande_audio"] = batch["filename_anforande_audio"][i]
             speakers.append(df_speaker)
         except Exception as e:
             print(e)
@@ -100,10 +93,9 @@ for index, batch in tqdm(enumerate(diarization_loader), total=len(diarization_lo
                     {
                         "start": None,
                         "end": None,
-                        "label": batch["filename_anforande_audio"][i],
+                        "label": batch["filename"][i],
                         "dokid": batch["dokid"][i],
                         "anforande_nummer": int(batch["anforande_nummer"][i]),
-                        "filename_anforande_audio": batch["filename_anforande_audio"][i],
                     }
                 ]
             )

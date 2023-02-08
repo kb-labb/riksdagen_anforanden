@@ -3,21 +3,12 @@ from tqdm import tqdm
 
 df = pd.read_parquet("data/df_audio_metadata.parquet")
 df_timestamp = pd.read_parquet("data/df_timestamp.parquet")
-df_diarization = pd.concat(
-    [
-        pd.read_parquet("data/df_speakers_debate_2003_2011.parquet"),
-        pd.read_parquet("data/df_speakers_debate_2020_2022.parquet"),
-    ]
-).reset_index(drop=True)
+df_diarization = pd.read_parquet("data/df_speakers_debate.parquet")
 
 # Left join the columns dokid, anforance_nummer, debatedate from df in to df_timestamp
 df_timestamp = df_timestamp.merge(
     df[["dokid", "anforande_nummer", "debatedate"]], on=["dokid", "anforande_nummer"], how="left"
 )
-
-df_timestamp = df_timestamp[
-    (df_timestamp["debatedate"] >= "2020-01-01") | (df_timestamp["debatedate"] < "2012-01-01")
-].reset_index(drop=True)
 
 # Left join df_timestamp in to df_diarization
 df_diarization["duration"] = df_diarization["end"] - df_diarization["start"]
@@ -86,47 +77,37 @@ for dokid, df_timestamp_group in tqdm(df_timestamp.groupby("dokid"), total=len(d
 
 df_overlap = pd.concat(df_overlap, ignore_index=True)
 df_overlap = df_overlap.sort_values(["dokid", "anforande_nummer", "speech_segment_id"]).reset_index(drop=True)
-df_overlap = df_overlap[
-    (df_overlap["label"] != df_overlap["label"].shift()) | (df_overlap["label"] != df_overlap["label"].shift(-1))
-]
-
 
 df_list = []
-for group_variables, df_group in tqdm(df_overlap.groupby(["dokid"])):
+for group_variables, df_group in tqdm(df_overlap.groupby(["dokid", "anforande_nummer"])):
+    # Subset first and last segment of a contiguous speech sequence by the same speaker
+    # within each dokid and anforande_nummer.
     df_group = df_group.copy()
-    df_group["speech_segment_id"] = (
-        df_group["label"].eq(0) | (df_group["label"] != df_group["label"].shift())
-    ).cumsum()
+    df_group = df_group[
+        (df_group["label"] != df_group["label"].shift()) | (df_group["label"] != df_group["label"].shift(-1))
+    ]
     df_list.append(df_group)
 
 df_overlap = pd.concat(df_list)
 
 # Start of contiguous speech segment
-df_overlap["start_segment"] = df_overlap.groupby(["dokid", "anforande_nummer", "speech_segment_id"])[
-    "start_segment"
-].transform("min")
+df_overlap["start_segment"] = df_overlap.groupby(["dokid", "anforande_nummer", "label"])["start_segment"].transform(
+    "min"
+)
 # End of speech segment
-df_overlap["end_segment"] = df_overlap.groupby(["dokid", "anforande_nummer", "speech_segment_id"])[
-    "end_segment"
-].transform("max")
+df_overlap["end_segment"] = df_overlap.groupby(["dokid", "anforande_nummer", "label"])["end_segment"].transform("max")
 df_overlap = df_overlap.groupby(["dokid", "label", "anforande_nummer"]).first().reset_index()
 df_overlap["duration_segment"] = df_overlap["end_segment"] - df_overlap["start_segment"]
 
 
 # Count number of anforande_nummer per dokid using .transform("count")
 df_overlap["nr_speech_segments"] = df_overlap.groupby(["dokid", "anforande_nummer"])["label"].transform("count")
-
-
 df_overlap["duration_overlap"] = df_overlap[["end_segment", "end_text_time"]].min(axis=1) - df_overlap[
     ["start_segment", "start_text_time"]
 ].max(axis=1)
-
 df_overlap["duration_text"] = df_overlap["end_text_time"] - df_overlap["start_text_time"]
 df_overlap["overlap_ratio"] = df_overlap["duration_overlap"] / df_overlap["duration_text"]
 df_overlap["length_ratio"] = df_overlap["duration_segment"] / df_overlap["duration_text"]
-
-
-df_overlap[(df_overlap["dokid"] == "GS01FIU20") & (df_overlap["anforande_nummer"] == 3)]
 
 # Group by dokid and anforande_nummer and keep only the row with the highest overlap_ratio
 df_overlap = (
@@ -136,3 +117,37 @@ df_overlap = (
 )
 
 df_overlap.to_parquet("data/df_diarization.parquet", index=False)
+
+# df_overlap["debateurl_timestamp"] = (
+#     "https://www.riksdagen.se/views/pages/embedpage.aspx?did="
+#     + df_overlap["dokid"]
+#     + "&start="
+#     + df_overlap["start_segment"].astype(str)
+#     + "&end="
+#     + (df_overlap["start_segment"] + df_overlap["duration_segment"]).astype(str)
+# )
+
+
+# df = df[
+#     (df["debatedate"] >= "2020-01-01") | (df["debatedate"] < "2015-01-01") & (df["dokid"].isin(df_timestamp["dokid"]))
+# ].reset_index(drop=True)
+
+# # Left join df_overlap in to df
+# df = df.merge(df_overlap, on=["dokid", "anforande_nummer"], how="left")
+
+# df["end"] = df["start"] + df["duration"]
+# df["start_diff"] = df["start_segment"] - df["start"]
+# df["end_diff"] = df["end_segment"] - df["end"]
+
+# df["debateurl_timestamp"] = (
+#     "https://www.riksdagen.se/views/pages/embedpage.aspx?did="
+#     + df["dokid"]
+#     + "&start="
+#     + df["start_segment"].astype(str)
+#     + "&end="
+#     + (df["start_segment"] + df["duration_segment"]).astype(str)
+# )
+
+# pd.set_option("max_colwidth", 120)
+
+# df["debateurl"] = "https://riksdagen.se" + df["debateurl"]

@@ -17,42 +17,43 @@ from src.dataset import DiarizationDataset
 from pyannote.audio import Pipeline
 
 # Read df_audiometa.parquet
-df_audiometa = pd.read_parquet("data/df_audio_metadata.parquet")
+df_audiometa = pd.read_parquet("data/df_audio_metadata_new.parquet")
 
 # Debates with MoPs active longer than 10 years
 df = pd.read_parquet("dokid_anfnum_over10_speeches.parquet")
-df = df_audiometa[df_audiometa["dokid"].isin(df["dokid"])]
+df = df_audiometa[~df_audiometa["dokid"].isin(df["dokid"])]
 
 pipe = pipeline(model="KBLab/wav2vec2-large-voxrex-swedish", device=0)
 
 df_debates = df.groupby("dokid").first().reset_index()
+df_debates = df_debates[df_debates["debatedate"] <= "2012-01-01"]
 
-# texts = []
-# for index, row in tqdm(df_debates.iterrows(), total=len(df_debates)):
-#     try:
-#         audio_filepath = os.path.join("data/audio", row.filename)
-#         text = pipe(audio_filepath, chunk_length_s=50, stride_length_s=7, return_timestamps="word")
-#         text["dokid"] = row.dokid
-#         text["anforande_nummer"] = row.anforande_nummer
-#         text["filename"] = row.filename
-#         texts.append(text)
-#     except Exception as e:
-#         print(e)
-#         print(row.filename)
-#         texts.append(
-#             {
-#                 "text": None,
-#                 "dokid": row.dokid,
-#                 "anforande_nummer": row.anforande_nummer,
-#                 "filename": row.filename,
-#             }
-#         )
+texts = []
+for index, row in tqdm(df_debates.iterrows(), total=len(df_debates)):
+    try:
+        audio_filepath = os.path.join("data/audio", row.filename)
+        text = pipe(audio_filepath, chunk_length_s=50, stride_length_s=7, return_timestamps="word")
+        text["dokid"] = row.dokid
+        text["anforande_nummer"] = row.anforande_nummer
+        text["filename"] = row.filename
+        texts.append(text)
+    except Exception as e:
+        print(e)
+        print(row.filename)
+        texts.append(
+            {
+                "text": None,
+                "dokid": row.dokid,
+                "anforande_nummer": row.anforande_nummer,
+                "filename": row.filename,
+            }
+        )
 
-# df_inference = pd.DataFrame(texts)
-# df_inference = df_inference.rename(columns={"text": "anftext_inference"})
-# df_inference.loc[df_inference["anftext_inference"] == "", "anftext_inference"] = None
+df_inference = pd.DataFrame(texts)
+df_inference = df_inference.rename(columns={"text": "anftext_inference"})
+df_inference.loc[df_inference["anftext_inference"] == "", "anftext_inference"] = None
 
-# df_inference.to_parquet("data/df_finder.parquet", index=False)
+df_inference.to_parquet("data/df_finder_2003_2011.parquet", index=False)
 
 # df_inference = pd.read_parquet("data/df_finder.parquet")
 # # Wav2vec2 inference should already be normalized, but sometimes contains multiple spaces
@@ -131,71 +132,83 @@ df_debates = df.groupby("dokid").first().reset_index()
 #     ]
 # ].to_parquet("data/df_timestamp.parquet", index=False)
 
-df_timestamp = pd.read_parquet("data/df_timestamp.parquet")
 
-# Left join the columns dokid, anforance_nummer, filename from df in to df_timestamp
-df_timestamp = df_timestamp.merge(
-    df[["dokid", "anforande_nummer", "filename", "debatedate"]], on=["dokid", "anforande_nummer"], how="left"
-)
+####
+# df_timestamp = pd.read_parquet("data/df_timestamp.parquet")
 
-df_timestamp["filename"] = df_timestamp["filename"].str.replace(".mp3", ".wav")
-df_timestamp["valid_wav"] = df_timestamp["filename"].apply(lambda x: (Path("data/audio") / Path(x)).exists())
-df_timestamp = df_timestamp[(df_timestamp["valid_wav"])]
-df_timestamp = df_timestamp[df_timestamp["debatedate"] < "2020-01-01"].reset_index(drop=True)
+# # Left join the columns dokid, anforance_nummer, filename from df in to df_timestamp
+# df_timestamp = df_timestamp.merge(
+#     df[["dokid", "anforande_nummer", "filename", "debatedate", "valid_audio"]],
+#     on=["dokid", "anforande_nummer"],
+#     how="left",
+# )
 
-diarization = DiarizationDataset(df_timestamp, full_debate=True)
-diarization_loader = DataLoader(
-    diarization,
-    batch_size=1,
-    shuffle=False,
-    num_workers=28,
-    # collate_fn=custom_collate_fn,
-    prefetch_factor=4,
-)
+# df_timestamp["filename"] = df_timestamp["filename"].str.replace(".mp3", ".wav")
+# df_timestamp["valid_wav"] = df_timestamp["filename"].apply(
+#     lambda x: (Path("data/audio") / Path(x)).exists() if pd.notnull(x) else False
+# )
 
-pipe = Pipeline.from_pretrained("pyannote/speaker-diarization@2.1", use_auth_token=True)
+# df_timestamp.loc[df_timestamp["valid_audio"].isna(), "valid_audio"] = False
+# df_timestamp = df_timestamp[(df_timestamp["valid_wav"])].reset_index(drop=True)
 
-speakers = []
-for index, batch in tqdm(enumerate(diarization_loader), total=len(diarization_loader)):
-    audio_filepath = [os.path.join("data/audio", filename) for filename in batch["filename"]]
 
-    for i in range(0, len(batch["waveform"])):
+# diarization = DiarizationDataset(df_timestamp, full_debate=True, folder="data/audio")
+# diarization_loader = DataLoader(
+#     diarization,
+#     batch_size=1,
+#     shuffle=False,
+#     num_workers=16,
+#     # collate_fn=custom_collate_fn,
+#     prefetch_factor=4,
+# )
 
-        try:
-            diarization = pipe(
-                {
-                    "sample_rate": int(batch["sample_rate"][i]),
-                    "waveform": batch["waveform"][i].to("cuda").unsqueeze(0),
-                }
-            )
 
-            df_speaker = pd.DataFrame(
-                [
-                    {"start": segment.start, "end": segment.end, "label": label}
-                    for segment, _, label in diarization.itertracks(yield_label=True)
-                ]
-            )
-            df_speaker["dokid"] = batch["dokid"][i]
-            df_speaker["anforande_nummer"] = int(batch["anforande_nummer"][i])
-            df_speaker["filename"] = batch["filename"][i]
-            speakers.append(df_speaker)
-        except Exception as e:
-            print(e)
-            print(batch["filename_anforande_audio"][i])
-            df_speaker = pd.DataFrame(
-                [
-                    {
-                        "start": None,
-                        "end": None,
-                        "label": batch["filename"][i],
-                        "dokid": batch["dokid"][i],
-                        "anforande_nummer": int(batch["anforande_nummer"][i]),
-                        "filename": batch["filename"][i],
-                    }
-                ]
-            )
+# pipe = Pipeline.from_pretrained("pyannote/speaker-diarization@2.1", use_auth_token=True)
 
-            speakers.append(df_speaker)
+# speakers = []
+# try:
+#     for index, batch in tqdm(enumerate(diarization_loader), total=len(diarization_loader)):
+#         audio_filepath = [os.path.join("data/audio", filename) for filename in batch["filename"]]
 
-df_speakers = pd.concat(speakers, ignore_index=True)
-df_speakers.to_parquet("data/df_speakers_debate.parquet", index=False)
+#         for i in range(0, len(batch["waveform"])):
+
+#             try:
+#                 diarization = pipe(
+#                     {
+#                         "sample_rate": int(batch["sample_rate"][i]),
+#                         "waveform": batch["waveform"][i].to("cuda").unsqueeze(0),
+#                     }
+#                 )
+
+#                 df_speaker = pd.DataFrame(
+#                     [
+#                         {"start": segment.start, "end": segment.end, "label": label}
+#                         for segment, _, label in diarization.itertracks(yield_label=True)
+#                     ]
+#                 )
+#                 df_speaker["dokid"] = batch["dokid"][i]
+#                 df_speaker["anforande_nummer"] = int(batch["anforande_nummer"][i])
+#                 df_speaker["filename"] = batch["filename"][i]
+#                 speakers.append(df_speaker)
+#             except Exception as e:
+#                 print(e)
+#                 print(batch["filename"][i])
+#                 df_speaker = pd.DataFrame(
+#                     [
+#                         {
+#                             "start": None,
+#                             "end": None,
+#                             "label": batch["filename"][i],
+#                             "dokid": batch["dokid"][i],
+#                             "anforande_nummer": int(batch["anforande_nummer"][i]),
+#                             "filename": batch["filename"][i],
+#                         }
+#                     ]
+#                 )
+
+#                 speakers.append(df_speaker)
+# except Exception as e:
+#     print(e)
+
+# df_speakers = pd.concat(speakers, ignore_index=True)
+# df_speakers.to_parquet("data/df_speakers_debate_rest.parquet", index=False)

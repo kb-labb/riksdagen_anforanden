@@ -31,10 +31,11 @@ class AnforandeDataset(Dataset):
 
 
 class DiarizationDataset(Dataset):
-    def __init__(self, df, full_debate=False):
+    def __init__(self, df, full_debate=False, folder="data/audio"):
         # Use pandas, numpy or pyarrow to avoid memory usage getting out of control
         # https://github.com/pytorch/pytorch/issues/13246#issuecomment-905703662
 
+        self.folder = folder
         if full_debate:
             self.df = df.groupby("dokid").first().reset_index()
             self.filepaths = self.df["filename"]
@@ -48,7 +49,7 @@ class DiarizationDataset(Dataset):
         return len(self.filepaths)
 
     def __getitem__(self, idx):
-        audio_filepath = "data/audio/" + self.filepaths[idx]
+        audio_filepath = self.folder + self.filepaths[idx]
         # speech_array, sample_rate = librosa.load(audio_filepath, sr=16000)
         speech_array, sample_rate = torchaudio.load(audio_filepath)
 

@@ -2,6 +2,7 @@ mkdir data
 mkdir data/json
 mkdir data/audio
 
+wget https://data.riksdagen.se/dataset/anforande/anforande-202223.json.zip -P data/json
 wget https://data.riksdagen.se/dataset/anforande/anforande-202122.json.zip -P data/json
 wget https://data.riksdagen.se/dataset/anforande/anforande-202021.json.zip -P data/json
 wget https://data.riksdagen.se/dataset/anforande/anforande-201920.json.zip -P data/json
@@ -32,6 +33,7 @@ wget https://data.riksdagen.se/dataset/anforande/anforande-199596.json.zip -P da
 wget https://data.riksdagen.se/dataset/anforande/anforande-199495.json.zip -P data/json
 wget https://data.riksdagen.se/dataset/anforande/anforande-199394.json.zip -P data/json
 
+unzip data/json/anforande-202223.json.zip -d data/json
 unzip data/json/anforande-202122.json.zip -d data/json
 unzip data/json/anforande-202021.json.zip -d data/json
 unzip data/json/anforande-201920.json.zip -d data/json
