@@ -1,3 +1,4 @@
+import os
 import librosa
 import pandas as pd
 import torch
@@ -49,7 +50,7 @@ class DiarizationDataset(Dataset):
         return len(self.filepaths)
 
     def __getitem__(self, idx):
-        audio_filepath = self.folder + self.filepaths[idx]
+        audio_filepath = os.path.join(self.folder, self.filepaths[idx])
         # speech_array, sample_rate = librosa.load(audio_filepath, sr=16000)
         speech_array, sample_rate = torchaudio.load(audio_filepath)
 
