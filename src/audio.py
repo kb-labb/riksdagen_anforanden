@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+import pandas as pd
 from pydub import AudioSegment
 from nltk import sent_tokenize
 
@@ -17,21 +18,24 @@ def split_audio_by_speech(df, audio_dir="data/audio", file_exists_check=False):
             skips it. When False, reprocesses all files.
     """
 
+    if pd.isnull(df["start_adjusted"].iloc[0]):
+        return None
+
     filename_dokid = df["filename"].iloc[0]
-    segments = df[["start", "duration"]].to_dict(orient="records")
+    segments = df[["start_adjusted", "end_adjusted"]].to_dict(orient="records")
     sound = AudioSegment.from_mp3(os.path.join(audio_dir, filename_dokid))
     sound = sound.set_frame_rate(16000)
     sound = sound.set_channels(1)
 
     filenames_speeches = []
     for segment in segments:
-        start = float(segment["start"]) * 1000  # ms
-        end = (float(segment["start"]) + float(segment["duration"])) * 1000
+        start = float(segment["start_adjusted"]) * 1000  # ms
+        end = float(segment["end_adjusted"]) * 1000
         split = sound[start:end]
 
         filename = Path(filename_dokid).parent / Path(filename_dokid).stem  # Filename without extension.
 
-        filename_speech = Path(f"{filename}_{segment['start']}_{segment['start'] + segment['duration']}.wav")
+        filename_speech = Path(f"{filename}_{segment['start_adjusted']}_{segment['end_adjusted']}.wav")
 
         if file_exists_check:
             if os.path.exists(os.path.join(audio_dir, filename_speech)):
