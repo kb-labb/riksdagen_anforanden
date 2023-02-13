@@ -1,4 +1,5 @@
 import pandas as pd
+from pathlib import Path
 from tqdm import tqdm
 
 df = pd.read_parquet("data/df_audio_metadata_new.parquet")
@@ -56,6 +57,7 @@ df_segments = df_segments.sort_values(["dokid", "speech_segment_id"]).reset_inde
 df_segments = df_segments.drop(columns=["start", "end", "duration"])
 df_segments["duration_segment"] = df_segments["end_segment"] - df_segments["start_segment"]
 
+df_timestamp = df_timestamp[df_timestamp["dokid"].isin(df_diarization["dokid"].unique())].reset_index(drop=True)
 
 df_overlap = []
 for dokid, df_timestamp_group in tqdm(df_timestamp.groupby("dokid"), total=len(df_timestamp.groupby("dokid"))):
@@ -67,6 +69,7 @@ for dokid, df_timestamp_group in tqdm(df_timestamp.groupby("dokid"), total=len(d
         df_segment_group["end"] = row["end"]
         df_segment_group["start_text_time"] = row["start_text_time"]
         df_segment_group["end_text_time"] = row["end_text_time"]
+        df_segment_group["fuzzy_score"] = row["fuzzy_score"]
         df_segment_group["anforande_nummer"] = row["anforande_nummer"]
 
         df_segment_group["duration_text"] = df_segment_group["end_text_time"] - df_segment_group["start_text_time"]
@@ -121,128 +124,57 @@ df_overlap = (
     .reset_index(drop=True)
 )
 
-# df_overlap.to_parquet("data/df_diarization.parquet", index=False)
+df_overlap.to_parquet("data/df_diarization.parquet", index=False)
 
 df_overlap = pd.read_parquet("data/df_diarization.parquet")
 
-df_overlap["debateurl_timestamp"] = (
-    "https://www.riksdagen.se/views/pages/embedpage.aspx?did="
-    + df_overlap["dokid"]
-    + "&start="
-    + df_overlap["start_segment"].astype(str)
-    + "&end="
-    + (df_overlap["start_segment"] + df_overlap["duration_segment"]).astype(str)
-)
-
-
-# # Left join df_overlap in to df
-# df = df.merge(df_overlap, on=["dokid", "anforande_nummer"], how="left")
-
-# df["end"] = df["start"] + df["duration"]
-# df["start_diff"] = df["start_segment"] - df["start"]
-# df["end_diff"] = df["end_segment"] - df["end"]
-
-# df["debateurl_timestamp"] = (
-#     "https://www.riksdagen.se/views/pages/embedpage.aspx?did="
-#     + df["dokid"]
-#     + "&start="
-#     + df["start_segment"].astype(str)
-#     + "&end="
-#     + (df["start_segment"] + df["duration_segment"]).astype(str)
-# )
-
-# pd.set_option("max_colwidth", 120)
-
-# df["debateurl"] = "https://riksdagen.se" + df["debateurl"]
-
-df_overlap[df_overlap["duration_segment"] >= 30]["duration_segment"].sum() / 3600
-
-df_overlap["duration_segment"].sum() / 3600
-
-df_overlap[df_overlap["length_ratio"] > 2]
-
-df = pd.read_parquet("data/df_audio_metadata_new.parquet")
-df_overlap = pd.read_parquet("data/df_diarization.parquet")
-
-# Version 1 join
-a = df.merge(
+df = df.merge(
     df_overlap.drop(["filename", "start", "duration"], axis=1),
     on=["dokid", "anforande_nummer"],
     how="left",
 )
 
-# a.to_parquet("data/df_audio_metadata_final.parquet", index=False)
+df.to_parquet("data/df_audio_metadata_final.parquet", index=False)
 
-# Set pd.option to display more of the column
-pd.set_option("max_colwidth", 120)
+# df = pd.read_parquet("data/df_audio_metadata_final.parquet")
+df = df[~df["start_segment"].isna()].reset_index(drop=True)
 
-a[
-    [
-        "dokid",
-        "anforande_nummer",
-        "start_segment",
-        "end_segment",
-        "start_text_time",
-        "end_text_time",
-        "start",
-        "duration",
-        "duration_overlap",
-        "length_ratio",
-        "overlap_ratio",
-        "text",
-        "debateurl_timestamp",
-    ]
-][14800:14850]
+# Remove duplicates of the same speech (dokid, anforande_nummer) if by same speaker (text)
+df = df.groupby(["dokid", "anforande_nummer", "text"]).first().reset_index()
 
+# Group by dokid and take the difference between start_segment and previous value of start_segment
+df = df.sort_values(["dokid", "anforande_nummer", "start_segment"])
+df["start_segment_diff"] = df.groupby("dokid")["start_segment"].diff()
+# Are the start_segment values the same for the current and previous row?
+df["start_segment_same"] = (df.groupby("dokid")["start_segment"].diff() == 0) | (
+    df.groupby("dokid")["start_segment"].diff(-1) == 0
+)
+df["duplicate_speech"] = df["anftext"].duplicated(keep=False)
+df["start_adjusted"] = (df["start_segment"] - 0.1).round(1)
+df["end_adjusted"] = (df["end_segment"] + 0.4).round(1)
+df["filename_anforande_audio"] = df[["start_adjusted", "end_adjusted", "filename"]].apply(
+    lambda x: Path(x["filename"]).parent / f"{Path(x['filename']).stem}_{x['start_adjusted']}_{x['end_adjusted']}.wav",
+    axis=1,
+)
+df["filename_anforande_audio"] = df["filename_anforande_audio"].astype(str)
 
-a[(a[["dokid", "anforande_nummer"]].duplicated(keep=False)) & (~a["start_segment"].isna())].sort_values(
-    ["dokid", "anforande_nummer"]
-).iloc[50:60][
-    [
-        "dokid",
-        "anforande_nummer",
-        "start_segment",
-        "start_text_time",
-        "end_segment",
-        "end_text_time",
-        "start",
-        "duration",
-        "duration_overlap",
-        "length_ratio",
-        "overlap_ratio",
-        "text",
-        "debateurl_timestamp",
-    ]
-].values
-
-a[(a[["dokid", "anforande_nummer"]].duplicated())].sort_values(["dokid", "anforande_nummer"]).sort_values(
-    ["dokid", "anforande_nummer"]
-).iloc[0:50]
-
-
-a["start_segment"].isna().sum()
-
-# Version 2 join
-b = df.merge(
-    df_overlap.drop("filename", axis=1),
-    on=["dokid", "anforande_nummer", "start", "duration"],
-    how="left",
+df["debateurl_timestamp"] = (
+    "https://www.riksdagen.se/views/pages/embedpage.aspx?did="
+    + df["dokid"]
+    + "&start="
+    + df["start_adjusted"].astype(int).astype(str)
+    + "&end="
+    + (df["end_adjusted"]).astype(int).astype(str)
 )
 
-b[b[["dokid", "anforande_nummer"]].duplicated()][0:50]
+df.to_parquet("data/df_final.parquet", index=False)
 
-b["start_segment"].isna().sum()
-b[(b["dokid"] == "GU10162") & (b["anforande_nummer"] == 21)]
+# # Set pd.option to display more of the column
+# pd.set_option("max_colwidth", 120)
 
-a.columns
-a[a["start_text_time"].isna()]
-
-df_overlap[
-    (df_overlap["length_ratio"] < 1.5)
-    & (df_overlap["length_ratio"] > 0.7)
-    & (df_overlap["overlap_ratio"] > 0.7)
-    & (df_overlap["duration_segment"] > 30)
-]["duration_segment"].sum() / 3600
-
-
-df_overlap.columns
+# df[
+#     (df["length_ratio"] < 1.5)
+#     & (df["length_ratio"] > 0.7)
+#     & (df["overlap_ratio"] > 0.7)
+#     & (df["duration_segment"] > 30)
+# ]["duration_segment"].sum() / 3600

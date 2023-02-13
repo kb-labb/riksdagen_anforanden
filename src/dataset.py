@@ -36,15 +36,25 @@ class DiarizationDataset(Dataset):
         # Use pandas, numpy or pyarrow to avoid memory usage getting out of control
         # https://github.com/pytorch/pytorch/issues/13246#issuecomment-905703662
 
+        self._full_debate = full_debate
         self.folder = folder
-        if full_debate:
+        if self._full_debate:
             self.df = df.groupby("dokid").first().reset_index()
             self.filepaths = self.df["filename"]
         else:
+            # Process files on the speech level.
+            # Filter your dataframe in your script before passing it to DiarizationDataset,
+            # keeping only one instance of each filename_anforande_audio.
+            # Otherwise same file may be processed multiple times.
             self.df = df
             self.filepaths = self.df["filename_anforande_audio"]
         self.dokid = self.df["dokid"]
         self.anforande_nummer = self.df["anforande_nummer"]
+
+    @property
+    def full_debate(self):
+        """True if the dataset is processed on the debate level, False if on the speech level."""
+        return self._full_debate
 
     def __len__(self):
         return len(self.filepaths)

@@ -14,6 +14,7 @@ from src.metrics import (
 )
 from src.data import normalize_text
 from src.dataset import DiarizationDataset
+from src.audio import diarize
 from pyannote.audio import Pipeline
 
 # Read df_audiometa.parquet
@@ -26,40 +27,40 @@ df = df_audiometa[~df_audiometa["dokid"].isin(df["dokid"])]
 pipe = pipeline(model="KBLab/wav2vec2-large-voxrex-swedish", device=0)
 
 df_debates = df.groupby("dokid").first().reset_index()
-df_debates = df_debates[df_debates["debatedate"] <= "2012-01-01"]
+df_debates = df_debates[df_debates["debatedate"] < "2017-01-01"]
 
-texts = []
-for index, row in tqdm(df_debates.iterrows(), total=len(df_debates)):
-    try:
-        audio_filepath = os.path.join("data/audio", row.filename)
-        text = pipe(audio_filepath, chunk_length_s=50, stride_length_s=7, return_timestamps="word")
-        text["dokid"] = row.dokid
-        text["anforande_nummer"] = row.anforande_nummer
-        text["filename"] = row.filename
-        texts.append(text)
-    except Exception as e:
-        print(e)
-        print(row.filename)
-        texts.append(
-            {
-                "text": None,
-                "dokid": row.dokid,
-                "anforande_nummer": row.anforande_nummer,
-                "filename": row.filename,
-            }
-        )
+# texts = []
+# for index, row in tqdm(df_debates.iterrows(), total=len(df_debates)):
+#     try:
+#         audio_filepath = os.path.join("data/audio", row.filename)
+#         text = pipe(audio_filepath, chunk_length_s=50, stride_length_s=7, return_timestamps="word")
+#         text["dokid"] = row.dokid
+#         text["anforande_nummer"] = row.anforande_nummer
+#         text["filename"] = row.filename
+#         texts.append(text)
+#     except Exception as e:
+#         print(e)
+#         print(row.filename)
+#         texts.append(
+#             {
+#                 "text": None,
+#                 "dokid": row.dokid,
+#                 "anforande_nummer": row.anforande_nummer,
+#                 "filename": row.filename,
+#             }
+#         )
 
-df_inference = pd.DataFrame(texts)
-df_inference = df_inference.rename(columns={"text": "anftext_inference"})
-df_inference.loc[df_inference["anftext_inference"] == "", "anftext_inference"] = None
+# df_inference = pd.DataFrame(texts)
+# df_inference = df_inference.rename(columns={"text": "anftext_inference"})
+# df_inference.loc[df_inference["anftext_inference"] == "", "anftext_inference"] = None
 
-df_inference.to_parquet("data/df_finder_2003_2011.parquet", index=False)
+# df_inference.to_parquet("data/df_finder_2003_2016.parquet", index=False)
 
-# df_inference = pd.read_parquet("data/df_finder.parquet")
+
+#### Timestamps ####
+# df_inference = pd.read_parquet("data/df_finder_2003_2016.parquet")
 # # Wav2vec2 inference should already be normalized, but sometimes contains multiple spaces
-# df_inference = normalize_text(
-#     df_inference, column_in="anftext_inference", column_out="anftext_inference"
-# )
+# df_inference = normalize_text(df_inference, column_in="anftext_inference", column_out="anftext_inference")
 
 # df = df[df["dokid"].isin(df_debates["dokid"])].reset_index(drop=True)
 
@@ -72,16 +73,16 @@ df_inference.to_parquet("data/df_finder_2003_2011.parquet", index=False)
 #     df, column_in="anftext_normalized", column_out="anftext_inference", threshold=55
 # )
 
-# df["match_indices_ngram"] = contiguous_ngram_indices(
-#     df,
-#     column_in="anftext_normalized",
-#     column_out="anftext_inference",
-#     n=6,
-#     threshold=1.8,
-#     min_continuous_match=13,
-#     max_gap=60,
-#     processes=8,
-# )
+# # df["match_indices_ngram"] = contiguous_ngram_indices(
+# #     df,
+# #     column_in="anftext_normalized",
+# #     column_out="anftext_inference",
+# #     n=6,
+# #     threshold=1.8,
+# #     min_continuous_match=13,
+# #     max_gap=60,
+# #     processes=24,
+# # )
 
 # df["start_word_index"] = df["match_indices_fuzzy"].apply(lambda x: x[0]).astype("Int64")
 # df["end_word_index"] = df["match_indices_fuzzy"].apply(lambda x: x[1]).astype("Int64")
@@ -104,12 +105,8 @@ df_inference.to_parquet("data/df_finder_2003_2011.parquet", index=False)
 #             return None
 
 
-# df["start_text_time"] = df[["start_word_index", "chunks"]].apply(
-#     lambda x: get_text_time(x, start=True), axis=1
-# )
-# df["end_text_time"] = df[["end_word_index", "chunks"]].apply(
-#     lambda x: get_text_time(x, start=False), axis=1
-# )
+# df["start_text_time"] = df[["start_word_index", "chunks"]].apply(lambda x: get_text_time(x, start=True), axis=1)
+# df["end_text_time"] = df[["end_word_index", "chunks"]].apply(lambda x: get_text_time(x, start=False), axis=1)
 
 # df["end"] = df["start"] + df["duration"]
 # df["start_diff"] = df["start_text_time"] - df["start"]
@@ -130,85 +127,30 @@ df_inference.to_parquet("data/df_finder_2003_2011.parquet", index=False)
 #         "start_diff",
 #         "end_diff",
 #     ]
-# ].to_parquet("data/df_timestamp.parquet", index=False)
+# ].to_parquet("data/df_timestamp_2003_2016.parquet", index=False)
 
 
-####
-# df_timestamp = pd.read_parquet("data/df_timestamp.parquet")
+#### Diarization ####
+df_timestamp = pd.read_parquet("data/df_timestamp_2003_2016.parquet")
 
-# # Left join the columns dokid, anforance_nummer, filename from df in to df_timestamp
-# df_timestamp = df_timestamp.merge(
-#     df[["dokid", "anforande_nummer", "filename", "debatedate", "valid_audio"]],
-#     on=["dokid", "anforande_nummer"],
-#     how="left",
-# )
+# Left join the columns dokid, anforance_nummer, filename from df in to df_timestamp
+df_timestamp = df_timestamp.merge(
+    df[["dokid", "anforande_nummer", "filename", "debatedate", "valid_audio"]],
+    on=["dokid", "anforande_nummer"],
+    how="left",
+)
 
-# df_timestamp["filename"] = df_timestamp["filename"].str.replace(".mp3", ".wav")
-# df_timestamp["valid_wav"] = df_timestamp["filename"].apply(
-#     lambda x: (Path("data/audio") / Path(x)).exists() if pd.notnull(x) else False
-# )
+df_timestamp["filename"] = df_timestamp["filename"].str.replace(".mp3", ".wav")
+df_timestamp["valid_wav"] = df_timestamp["filename"].apply(
+    lambda x: (Path("data/audio") / Path(x)).exists() if pd.notnull(x) else False
+)
 
-# df_timestamp.loc[df_timestamp["valid_audio"].isna(), "valid_audio"] = False
-# df_timestamp = df_timestamp[(df_timestamp["valid_wav"])].reset_index(drop=True)
-
-
-# diarization = DiarizationDataset(df_timestamp, full_debate=True, folder="data/audio")
-# diarization_loader = DataLoader(
-#     diarization,
-#     batch_size=1,
-#     shuffle=False,
-#     num_workers=16,
-#     # collate_fn=custom_collate_fn,
-#     prefetch_factor=4,
-# )
+df_timestamp.loc[df_timestamp["valid_audio"].isna(), "valid_audio"] = False
+df_timestamp = df_timestamp[(df_timestamp["valid_wav"])].reset_index(drop=True)
 
 
-# pipe = Pipeline.from_pretrained("pyannote/speaker-diarization@2.1", use_auth_token=True)
+diarization = DiarizationDataset(df_timestamp, full_debate=True, folder="data/audio")
 
-# speakers = []
-# try:
-#     for index, batch in tqdm(enumerate(diarization_loader), total=len(diarization_loader)):
-#         audio_filepath = [os.path.join("data/audio", filename) for filename in batch["filename"]]
 
-#         for i in range(0, len(batch["waveform"])):
-
-#             try:
-#                 diarization = pipe(
-#                     {
-#                         "sample_rate": int(batch["sample_rate"][i]),
-#                         "waveform": batch["waveform"][i].to("cuda").unsqueeze(0),
-#                     }
-#                 )
-
-#                 df_speaker = pd.DataFrame(
-#                     [
-#                         {"start": segment.start, "end": segment.end, "label": label}
-#                         for segment, _, label in diarization.itertracks(yield_label=True)
-#                     ]
-#                 )
-#                 df_speaker["dokid"] = batch["dokid"][i]
-#                 df_speaker["anforande_nummer"] = int(batch["anforande_nummer"][i])
-#                 df_speaker["filename"] = batch["filename"][i]
-#                 speakers.append(df_speaker)
-#             except Exception as e:
-#                 print(e)
-#                 print(batch["filename"][i])
-#                 df_speaker = pd.DataFrame(
-#                     [
-#                         {
-#                             "start": None,
-#                             "end": None,
-#                             "label": batch["filename"][i],
-#                             "dokid": batch["dokid"][i],
-#                             "anforande_nummer": int(batch["anforande_nummer"][i]),
-#                             "filename": batch["filename"][i],
-#                         }
-#                     ]
-#                 )
-
-#                 speakers.append(df_speaker)
-# except Exception as e:
-#     print(e)
-
-# df_speakers = pd.concat(speakers, ignore_index=True)
-# df_speakers.to_parquet("data/df_speakers_debate_rest.parquet", index=False)
+df_speakers = diarize(pipe=pipe, diarization_dataset=diarization)
+df_speakers.to_parquet("data/df_speakers_debate_2003_2016_rest.parquet", index=False)
