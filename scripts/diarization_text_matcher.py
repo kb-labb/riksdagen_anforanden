@@ -140,7 +140,7 @@ df.to_parquet("data/df_audio_metadata_final.parquet", index=False)
 df = df[~df["start_segment"].isna()].reset_index(drop=True)
 
 # Remove duplicates of the same speech (dokid, anforande_nummer) if by same speaker (text)
-df = df.groupby(["dokid", "anforande_nummer", "text"]).first().reset_index()
+df = df.groupby(["dokid", "anforande_nummer", "speaker"]).first().reset_index()
 
 # Group by dokid and take the difference between start_segment and previous value of start_segment
 df = df.sort_values(["dokid", "anforande_nummer", "start_segment"])
@@ -168,13 +168,3 @@ df["debateurl_timestamp"] = (
 )
 
 df.to_parquet("data/df_final.parquet", index=False)
-
-# # Set pd.option to display more of the column
-# pd.set_option("max_colwidth", 120)
-
-# df[
-#     (df["length_ratio"] < 1.5)
-#     & (df["length_ratio"] > 0.7)
-#     & (df["overlap_ratio"] > 0.7)
-#     & (df["duration_segment"] > 30)
-# ]["duration_segment"].sum() / 3600

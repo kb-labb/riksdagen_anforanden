@@ -19,7 +19,7 @@ def get_audio_metadata(rel_dok_id, backoff_factor=0.2):
 
     Returns:
         dict: Nested metadata fields with transcribed texts, media file
-        URLs and more.
+            URLs and more.
     """
     base_url = "https://data.riksdagen.se/api/mhs-vodapi?"
 
@@ -40,9 +40,7 @@ def get_audio_metadata(rel_dok_id, backoff_factor=0.2):
                 return None
 
             if speech_metadata["videodata"][0]["streams"] is None:
-                print(
-                    f"rel_dok_id {rel_dok_id} has no streams (media files).", end="\r", flush=True
-                )
+                print(f"rel_dok_id {rel_dok_id} has no streams (media files).", end="\r", flush=True)
                 return None
 
             df = preprocess_audio_metadata(speech_metadata)

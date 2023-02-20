@@ -2,13 +2,14 @@ import os
 from pathlib import Path
 
 import pandas as pd
+from mutagen.mp3 import MP3
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from pydub import AudioSegment
 from nltk import sent_tokenize
 
 
-def split_audio_by_speech(df, audio_dir="data/audio", dest_dir="data/audio2", file_exists_check=True):
+def split_audio_by_speech(df, audio_dir="data/audio", dest_dir="data/audio", file_exists_check=True):
     """
     Split audio file by anförande (speech) and save to disk in folder for specific dokid.
 
@@ -201,6 +202,13 @@ def diarize(pipe, diarization_dataset, batch_size=1, num_workers=24, prefetch_fa
 
     df_speakers = pd.concat(speakers).reset_index(drop=True)
     return df_speakers
+
+
+def get_audio_length(filename, folder="data/audio/"):
+    try:
+        return MP3(os.path.join(folder, filename)).info.length
+    except:
+        return None
 
 
 def convert_mp3_to_wav(filename, audio_dir="data/audio", dest_dir="data/audio", sample_rate=16000, channels=1):

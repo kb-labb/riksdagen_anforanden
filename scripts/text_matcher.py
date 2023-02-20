@@ -9,10 +9,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src.metrics import calculate_bleu, contiguous_ngram_match_star, contiguous_fuzzy_match_star
 from src.data import normalize_text
 
-df = pd.read_parquet("data/df_audio_metadata.parquet")
-df_inference = pd.read_parquet("data/df_inference.parquet")
+df = pd.read_parquet("data/df_final_metadata.parquet")
+df_inference = pd.read_parquet("data/df_inference_eval_2016_2023.parquet")
 
-df = pd.merge(df, df_inference, on=["dokid", "anforande_nummer", "filename_anforande_audio"])
+df = pd.merge(df, df_inference, on=["dokid", "anforande_nummer", "filename_anforande_audio"], how="inner")
 
 df = normalize_text(df, column_in="anftext", column_out="anftext_normalized")
 # Wav2vec2 inference should already be normalized, but sometimes contains multiple spaces
@@ -22,11 +22,9 @@ df["bleu_score"] = df[["anftext_normalized", "anftext_inference"]].apply(
     lambda x: calculate_bleu(x.anftext_normalized, x.anftext_inference), axis=1
 )
 
-df = df[df["bleu_score"] > 0.05].reset_index(drop=True)
-# filter out those anftext_inference that are shorter than 7 words
+# filter out those anftext_inference that are shorter than 8 words
 df = df[
-    (df["anftext_inference"].str.split().str.len() >= 8)
-    & (df["anftext_normalized"].str.split().str.len() >= 8)
+    (df["anftext_inference"].str.split().str.len() >= 8) & (df["anftext_normalized"].str.split().str.len() >= 8)
 ].reset_index(drop=True)
 
 df = df[~df["anftext_normalized"].isna()].reset_index(drop=True)
@@ -77,6 +75,8 @@ def contiguous_text_indices_ngram(
             )
         )
 
+    return df
+
 
 def contiguous_text_indices_fuzzy(
     df,
@@ -101,9 +101,7 @@ def contiguous_text_indices_fuzzy(
     """
 
     with mp.Pool(processes) as pool:
-        args = [
-            (text1, text2, threshold_fuzzy) for text1, text2 in zip(df[column_in], df[column_out])
-        ]
+        args = [(text1, text2, threshold_fuzzy) for text1, text2 in zip(df[column_in], df[column_out])]
         df["contiguous_fuzzy_match"] = list(
             tqdm(
                 pool.imap(
@@ -115,11 +113,13 @@ def contiguous_text_indices_fuzzy(
             )
         )
 
+    return df
+
 
 df_inference_bleu = contiguous_text_indices_ngram(df, "anftext_normalized", "anftext_inference")
 df_inference_bleu = contiguous_text_indices_fuzzy(df, "anftext_normalized", "anftext_inference")
 df_anftext_bleu = contiguous_text_indices_ngram(df, "anftext_inference", "anftext_normalized")
 df_anftext_bleu = contiguous_text_indices_fuzzy(df, "anftext_inference", "anftext_normalized")
 
-df_inference_bleu.to_parquet("data/df_inference_bleu.parquet")
-df_anftext_bleu.to_parquet("data/df_anftext_bleu.parquet")
+df_inference_bleu.to_parquet("data/df_inference_bleu_eval_2016_2023.parquet")
+df_anftext_bleu.to_parquet("data/df_anftext_bleu_eval_2016_2023.parquet")

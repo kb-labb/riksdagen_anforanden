@@ -13,7 +13,6 @@ from src.audio import split_audio_by_speech
 
 pd.set_option("display.max_colwidth", 110)
 
-
 df = pd.read_parquet("data/df_final.parquet")
 
 df["start_diff"] = df["start_segment"] - df["start"]
@@ -80,7 +79,7 @@ for filename in tqdm(df["filename_anforande_audio"].unique()):
         shutil.move((Path("data/audio2") / Path(filename)), (Path("data/audio") / Path(filename)))
 
 
-df.to_parquet("data/df_final_final.parquet", index=False)
+df.to_parquet("data/df_final_metadata.parquet", index=False)
 
 ####
 # GR01JUU18 klipptes inte rätt. Del av Peter Althins tal (164) klipptes bort.

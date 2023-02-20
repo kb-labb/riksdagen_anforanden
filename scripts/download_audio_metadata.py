@@ -47,11 +47,15 @@ df_audiometa.loc[df_audiometa["anftext"] == "", "anftext"] = None
 df_audiometa = df_audiometa.rename(columns={"number": "anforande_nummer"})
 
 df_audiometa = df_audiometa.merge(
-    df[["rel_dok_id", "anforande_nummer", "anforandetext"]],
+    df[["rel_dok_id", "anforande_nummer", "anforandetext", "talare", "intressent_id"]],
     left_on=["rel_dok_id", "anforande_nummer"],
     right_on=["rel_dok_id", "anforande_nummer"],
     how="left",
 )
+
+# Uppercase all names/party names because they are inconsistent in the data
+df_audiometa["text"] = df_audiometa["text"].str.upper()
+df_audiometa["talare"] = df_audiometa["talare"].str.upper()
 
 # Replace NaN in anftext column with text from anforandetext
 df_audiometa = coalesce_columns(df_audiometa, col1="anftext", col2="anforandetext")

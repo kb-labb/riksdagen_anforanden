@@ -1,5 +1,6 @@
 import multiprocessing as mp
 import sys
+import shutil
 from pathlib import Path
 import pandas as pd
 
@@ -20,8 +21,8 @@ df_groups = df.groupby("dokid")
 df_groups = df_groups[["dokid", "anforande_nummer", "filename", "start", "duration", "start_adjusted", "end_adjusted"]]
 df_list = [df_groups.get_group(x) for x in df_groups.groups]  # list of dfs, one for each dokid
 
-pool = mp.Pool(24)
-df_dokids = pool.map(split_audio_by_speech, tqdm(df_list, total=len(df_list)), chunksize=4)
+pool = mp.Pool(20)
+df_dokids = pool.map(split_audio_by_speech, tqdm(df_list, total=len(df_list)), chunksize=2)
 pool.close()
 
 df["filename_anforande_audio"] = df[["start_adjusted", "end_adjusted", "filename"]].apply(
@@ -30,4 +31,9 @@ df["filename_anforande_audio"] = df[["start_adjusted", "end_adjusted", "filename
 )
 
 df["filename_anforande_audio"] = df["filename_anforande_audio"].apply(lambda x: str(x))
-df.to_parquet("data/df_audio_metadata_final.parquet", index=False)
+# df.to_parquet("data/df_audio_metadata_final.parquet", index=False)
+
+# Move wav files from data/audio2 to data/audio if they don't exist in data/audio
+for filename in tqdm(df["filename_anforande_audio"].unique()):
+    if (not (Path("data/audio") / Path(filename)).exists()) and (Path("data/audio2") / Path(filename)).exists():
+        shutil.move((Path("data/audio2") / Path(filename)), (Path("data/audio") / Path(filename)))
