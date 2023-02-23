@@ -1,5 +1,9 @@
 # Riksdagens anföranden: audio and transcription alignment
 
+Code, instructions and metadata for reproducing the RixVox dataset.
+
+The entire pipeline from start to finish is untested. Start an issue if you run into any problems.
+
 ## Environment
 
 Install [aeneas dependencies](https://github.com/readbeyond/aeneas/blob/master/wiki/INSTALL.md) (Linux):
@@ -17,7 +21,7 @@ conda env create -f environment.yml
 
 ## Scripts
 
-**Note**: Instructions are currently out of date. They'll be updated once the dataset is released and code is cleaned up.
+**Note**: The dataset took weeks to process and changes to scripts were made along the way. I haven't tried running the entire pipeline from beginnning to end. Start an issue if you run into any problems.
 
 1. Download speech dataset from Riksdagen's öppna data. Run [`download_text_anforanden.sh`](https://github.com/kb-labb/riksdagen_anforanden/blob/main/download_text_anforanden.sh) 
   
@@ -37,17 +41,73 @@ conda env create -f environment.yml
     python scripts/download_audio_metadata.py
     ```
 
-4. Use the download links from previous step to download the actual audio files associated with each debate ([download_audio.py](https://github.com/kb-labb/riksdagen_anforanden/blob/main/scripts/download_audio.py))
+4. Use the download links from previous step to download the audio files associated with each debate ([download_audio.py](https://github.com/kb-labb/riksdagen_anforanden/blob/main/scripts/download_audio.py))
 
     ```bash
     python scripts/download_audio.py
     ```
 
-5. The audio files we've downloaded cover entire debates, sometimes spanning over multiple motioner, betänkanden, interpellationer. We use the available metadata, which indicates the start time and the duration of speeches, to split the audio file by individual speeches ([split_audio_by_speeches.py](https://github.com/kb-labb/riksdagen_anforanden/blob/main/scripts/split_audio_by_speeches.py))
+5. Convert from mp3 to wav ([mp3_to_wav.py](https://github.com/kb-labb/riksdagen_anforanden/blob/main/scripts/mp3_to_wav.py))
 
     ```bash
-    python scripts/split_audio_by_speeches.py
+    python scripts/convert_mp3_to_wav.py
     ```
+
+6. Run automated transcription of the debate file, do fuzzy string matching between automated transcripts and official transcripts, and run diarization (recommend to chunk your data in batches before running this). [speech_finder.py](https://github.com/kb-labb/riksdagen_anforanden/blob/main/scripts/speech_finder.py)
+
+7. Run [diarization_text_matcher.py](https://github.com/kb-labb/riksdagen_anforanden/blob/main/scripts/diarization_text_matcher.py) to assign speeches/speakers to the diarization results, using fuzzy string matched timestamps as guide.
+
+    ```bash
+    python scripts/diarization_text_matcher.py
+    ```
+
+8. Apply some heuristic filters to filter out low confidence diarization results and strange speeches. [heuristic_filter.py](https://github.com/kb-labb/riksdagen_anforanden/blob/main/scripts/heuristic_filter.py)
+
+    ```bash
+    python scripts/heuristic_filter.py
+    ```
+
+9. Split the audio files by individual speeches. We use the available metadata, which indicates the start and end time of speeches, to split the audio file by individual speeches ([split_audio_by_speeches.py](https://github.com/kb-labb/riksdagen_anforanden/blob/main/scripts/split_audio_by_speeches.py)).
+        
+        ```bash
+        python scripts/split_audio_by_speeches.py
+        ```
+
+10. Run Wav2Vec2 transcription on again, but this time on the speech level instead of on the debate level. [wav2vec2_transcribe.py](https://github.com/kb-labb/riksdagen_anforanden/blob/main/scripts/wav2vec2_transcribe.py).
+
+    ```bash
+    python scripts/wav2vec2_transcribe.py
+    ```
+
+11. Perform another round of fuzzy string matching ([text_matcher.py](https://github.com/kb-labb/riksdagen_anforanden/blob/main/scripts/text_matcher.py)), this time on the speech level. We compare automated transcripts of the speech segmentations with the official transcripts. These are later used for further quality filtering, as it helps us determine the overlap between the speech segments and official transcripts.
+
+    ```bash
+    python scripts/text_matcher.py
+    ```
+12. If you want to recreate RixVox, perform further quality filtering by running [rixvox_filter.py](https://github.com/kb-labb/riksdagen_anforanden/blob/main/scripts/rixvox_filter.py).
+    
+        ```bash
+        python scripts/rixvox_filter.py
+        ```
+
+13. Split the text of official transcripts in to sentences and output to newline separated text files ([split_text_by_speeches.py](https://github.com/kb-labb/riksdagen_anforanden/blob/main/scripts/split_text_by_speeches.py).
+
+    ```bash
+    python scripts/split_text_by_speeches.py
+    ```
+
+14. Use `aeneas` library to force align transcripts and audio ([force_align_audio.py](https://github.com/kb-labb/riksdagen_anforanden/blob/main/scripts/force_align_audio.py)).
+
+    ```bash
+    python scripts/force_align_audio.py
+    ```
+
+15. We now create audio snippets shorter than 30s for the final RixVox dataset. Combine/append sentences up to 30 seconds in length. We split those combined segments out of the speech audio files. This output becomes the final RixVox dataset. ([rixvox_splits.py](https://github.com/kb-labb/riksdagen_anforanden/blob/main/scripts/rixvox_splits.py))
+
+
+
+
+
 
 6. We repeat the process for the speech text transcripts. A sentence tokenized text file is created for each individual speech, with newline separated sentences (one sentence per line). If the split audio file is found under `data/audio/GS01TU11/2442210030027487721_aud_0_166.mp3`, then the text file will be created as `data/audio/GS01TU11/2442210030027487721_aud_0_166.txt`. See [split_text_by_speeches.py](https://github.com/kb-labb/riksdagen_anforanden/blob/main/scripts/split_text_by_speeches.py).
 
