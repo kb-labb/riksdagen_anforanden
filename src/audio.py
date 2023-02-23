@@ -83,7 +83,10 @@ def transcribe(
     texts = []
     for index, row in tqdm(df.iterrows(), total=len(df)):
         try:
-            audio_filepath = os.path.join(folder, row.filename_anforande_audio)
+            if full_debate:
+                audio_filepath = os.path.join(folder, row.filename)
+            else:
+                audio_filepath = os.path.join(folder, row.filename_anforande_audio)
 
             text = pipe(
                 audio_filepath,

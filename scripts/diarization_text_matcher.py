@@ -2,8 +2,11 @@ import pandas as pd
 from pathlib import Path
 from tqdm import tqdm
 
-df = pd.read_parquet("data/df_audio_metadata_new.parquet")
-df_timestamp = pd.read_parquet("data/df_timestamp_new.parquet")
+df = pd.read_parquet("data/df_audio_metadata.parquet")
+
+# If you chunked your processing in speech_finder.py, concatenate the rsults together
+# to a single dataframe (df_timestamp.parquet and df_speaker_debate.parquet)
+df_timestamp = pd.read_parquet("data/df_timestamp.parquet")
 df_diarization = pd.read_parquet("data/df_speakers_debate.parquet")
 
 # Left join the columns dokid, anforance_nummer, debatedate from df in to df_timestamp
@@ -167,4 +170,5 @@ df["debateurl_timestamp"] = (
     + (df["end_adjusted"]).astype(int).astype(str)
 )
 
-df.to_parquet("data/df_final.parquet", index=False)
+# Filtered version
+df.to_parquet("data/df_metadata.parquet", index=False)

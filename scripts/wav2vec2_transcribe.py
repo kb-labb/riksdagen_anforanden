@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.audio import transcribe
 
-df = pd.read_parquet("data/df_final_final.parquet")
+df = pd.read_parquet("data/df_final_metadata.parquet")
 df = df[df["debatedate"] < "2016-01-01"]
 
 pipe = pipeline(model="KBLab/wav2vec2-large-voxrex-swedish", device=0)

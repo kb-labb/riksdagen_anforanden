@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 df = pd.read_parquet("data/df_final_riksvox.parquet")
 df["filename_anforande_json"] = df["filename_anforande_audio"].str.extract(r"(.+?)\.") + ".json"
-df = df[38000:78000].reset_index(drop=True)
+# df = df[78000:].reset_index(drop=True)
 
 
 def read_force_alignments(filename_json):
@@ -173,7 +173,8 @@ def split_audio_by_line(df, audio_dir="data/rixvox", file_exists_check=False):
         filenames_speeches.append(filename_speech)
         split.export(os.path.join(audio_dir, filename_speech), format="wav", bitrate="16k")
 
-    df["filename_train_audio"] = str(filenames_speeches)
+    df["filename_train_audio"] = filenames_speeches
+    df["filename_train_audio"] = df["filename_train_audio"].astype(str)
     print(f"{filename_speech.parent} complete", end="\r", flush=True)
     return df
 
@@ -193,7 +194,30 @@ with mp.Pool(28) as pool:
     )
 
 df_list = pd.concat(df_list).reset_index(drop=True)
-df_list.to_parquet("data/df_train_78k.parquet", index=False)
+
+df_list = df_list.rename(columns={"filename_train_audio": "filename", "lines": "text"})
+df_list[
+    [
+        "dokid",
+        "anforande_nummer",
+        "observation_nr",
+        "speaker",
+        "party",
+        "sex",
+        "debatedate",
+        "electoral_district",
+        "birth_year",
+        "intressent_id",
+        "speaker_from_id",
+        "speaker_audio_meta",
+        "text",
+        "start",
+        "end",
+        "duration",
+        "bleu_score",
+        "filename",
+    ]
+].reset_index(drop=True).to_parquet("data/df_train.parquet", index=False)
 
 # df_obs["filename_train_audio"] = df_obs["filename_anforande_audio"].str.extract("(.+?)(?=_)")
 # df_obs["filename_train_audio"] = (

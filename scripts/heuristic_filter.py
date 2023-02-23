@@ -13,7 +13,7 @@ from src.audio import split_audio_by_speech
 
 pd.set_option("display.max_colwidth", 110)
 
-df = pd.read_parquet("data/df_final.parquet")
+df = pd.read_parquet("data/df_metadata.parquet")
 
 df["start_diff"] = df["start_segment"] - df["start"]
 df["end_diff"] = df["end_segment"] - df["end"]

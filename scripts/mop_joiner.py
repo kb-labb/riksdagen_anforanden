@@ -6,7 +6,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.data import coalesce_columns
 
-df = pd.read_parquet("data/df_audio_metadata_new.parquet")
+df = pd.read_parquet("data/df_audio_metadata.parquet")
 df_person = pd.read_csv("person.csv")
 
 df_person["From"] = pd.to_datetime(df_person["From"])
@@ -44,18 +44,18 @@ df = df.drop(columns="text")
 
 df["Född"] = df["Född"].astype("Int64")
 df["Parti"] = df["Parti"].str.upper()
-df.loc[df["Kön"] == "man", "sex"] = "male"
-df.loc[df["Kön"] == "kvinna", "sex"] = "female"
+df.loc[df["Kön"] == "man", "gender"] = "male"
+df.loc[df["Kön"] == "kvinna", "gender"] = "female"
 
 df = df.rename(columns={"Valkrets": "electoral_district", "Född": "birth_year", "Parti": "party"})
 df = df.drop(columns=["Förnamn", "Efternamn", "Kön", "Id"])
 
 
-df[["speaker", "intressent_id", "sex", "electoral_district", "birth_year"]] = (
-    df[["speaker", "intressent_id", "sex", "electoral_district", "birth_year"]]
+df[["speaker", "intressent_id", "gender", "electoral_district", "birth_year"]] = (
+    df[["speaker", "intressent_id", "gender", "electoral_district", "birth_year"]]
     .groupby("speaker", group_keys=False)
     .apply(lambda x: x.fillna(x.mode().iloc[0]))
     .reset_index(drop=True)
 )
 
-df.to_parquet("df_audio_metadata_new.parquet", index=False)
+df.to_parquet("df_audio_metadata.parquet", index=False)
