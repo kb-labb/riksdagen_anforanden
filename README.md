@@ -104,26 +104,6 @@ conda env create -f environment.yml
 
 15. We now create audio snippets shorter than 30s for the final RixVox dataset. Combine/append sentences up to 30 seconds in length. We split those combined segments out of the speech audio files. This output becomes the final RixVox dataset. ([rixvox_splits.py](https://github.com/kb-labb/riksdagen_anforanden/blob/main/scripts/rixvox_splits.py))
 
-
-
-
-
-
-6. We repeat the process for the speech text transcripts. A sentence tokenized text file is created for each individual speech, with newline separated sentences (one sentence per line). If the split audio file is found under `data/audio/GS01TU11/2442210030027487721_aud_0_166.mp3`, then the text file will be created as `data/audio/GS01TU11/2442210030027487721_aud_0_166.txt`. See [split_text_by_speeches.py](https://github.com/kb-labb/riksdagen_anforanden/blob/main/scripts/split_text_by_speeches.py).
-
     ```bash
-    python scripts/split_text_by_speeches.py
+    python scripts/rixvox_splits.py
     ```
-
-7. Use `aeneas` library to force align transcripts and audio ([force_align_audio.py](https://github.com/kb-labb/riksdagen_anforanden/blob/main/scripts/force_align_audio.py)). 
-
-    ```bash
-    python scripts/force_align_audio.py
-    ```
-
-8. We also transcribe each speech with `Wav2Vec2`. This is done to find audio files that don't match up with the Riksdag's transripts. 
-
-    ```bash
-    python scripts/wav2vec2_transcribe.py
-    ```
-    [wav2vec2_transcribe.py](https://github.com/kb-labb/riksdagen_anforanden/blob/main/scripts/wav2vec2_transcribe.py)
