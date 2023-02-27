@@ -69,9 +69,9 @@ conda env create -f environment.yml
 
 9. Split the audio files by individual speeches. We use the available metadata, which indicates the start and end time of speeches, to split the audio file by individual speeches ([split_audio_by_speeches.py](https://github.com/kb-labb/riksdagen_anforanden/blob/main/scripts/split_audio_by_speeches.py)).
         
-        ```bash
-        python scripts/split_audio_by_speeches.py
-        ```
+    ```bash
+    python scripts/split_audio_by_speeches.py
+    ```
 
 10. Run Wav2Vec2 transcription on again, but this time on the speech level instead of on the debate level. [wav2vec2_transcribe.py](https://github.com/kb-labb/riksdagen_anforanden/blob/main/scripts/wav2vec2_transcribe.py).
 
@@ -86,9 +86,9 @@ conda env create -f environment.yml
     ```
 12. If you want to recreate RixVox, perform further quality filtering by running [rixvox_filter.py](https://github.com/kb-labb/riksdagen_anforanden/blob/main/scripts/rixvox_filter.py).
     
-        ```bash
-        python scripts/rixvox_filter.py
-        ```
+    ```bash
+    python scripts/rixvox_filter.py
+    ```
 
 13. Split the text of official transcripts in to sentences and output to newline separated text files ([split_text_by_speeches.py](https://github.com/kb-labb/riksdagen_anforanden/blob/main/scripts/split_text_by_speeches.py).
 
