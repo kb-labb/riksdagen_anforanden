@@ -20,7 +20,7 @@ df = pd.concat(df_dokids)
 df["filename_anforande_text"] = df["filename_anforande_text"].apply(lambda x: str(x))
 
 
-df.to_parquet("data/df_final_riksvox.parquet")
+df.to_parquet("data/df_final_riksvox.parquet", index=False)
 df[["filename_anforande_audio", "filename_anforande_text"]].to_csv(
     r"data/speeches_files_aeneas.txt", sep=" ", index=None, mode="a", header=None
 )  # For aeneas

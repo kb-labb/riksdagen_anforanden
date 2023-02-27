@@ -26,6 +26,11 @@ print("Normalizing json to dataframe...")
 df = pd.json_normalize(json_speeches)
 # df = df.drop(columns=["anforandetext"])
 df["anforande_nummer"] = df["anforande_nummer"].astype(int)
+
+# Headers to clean up when next script is run (download_audio_metadata.py)
+headers = df.groupby("avsnittsrubrik").size().sort_values(ascending=False).head(1000)
+headers.reset_index().rename(columns={0: "count"}).to_csv("data/headers.csv", index=False)
+
 print("Preprocessing text...")
 df = preprocess_text(df, textcol="anforandetext")
 
