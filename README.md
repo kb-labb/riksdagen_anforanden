@@ -18,6 +18,10 @@ Install conda environment named `audio` using [environment.yml](https://github.c
 ```bash
 conda env create -f environment.yml
 ```
+Activate the environment and install the rest of the packages in the requirements.txt file:
+```bash
+pip install -r requirements.txt
+```
 
 ## Scripts
 
@@ -50,7 +54,7 @@ conda env create -f environment.yml
 5. Convert from mp3 to wav ([mp3_to_wav.py](https://github.com/kb-labb/riksdagen_anforanden/blob/main/scripts/mp3_to_wav.py))
 
     ```bash
-    python scripts/convert_mp3_to_wav.py
+    python scripts/mp3_to_wav.py
     ```
 
 6. Run automated transcription of the debate file, do fuzzy string matching between automated transcripts and official transcripts, and run diarization (recommend to chunk your data in batches before running this). [speech_finder.py](https://github.com/kb-labb/riksdagen_anforanden/blob/main/scripts/speech_finder.py)
