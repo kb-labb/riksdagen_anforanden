@@ -1,8 +1,13 @@
+import sys
 import pandas as pd
 import argparse
 import json
 import os
 from tqdm import tqdm
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from src.data import preprocess_text
 
 parser = argparse.ArgumentParser(
